@@ -135,3 +135,23 @@ class TransformerBlock(nn.Module):
         mlp_out = self.mlp(hidden_states)
         
         return rms_norm(hidden_states + mlp_out, variance_epsilon=self.norm_eps)
+    
+
+# if __name__ == "__main__":
+#     model = nn.Sequential(
+#         TransformerBlock(
+#             num_heads=8,
+#             hidden_size=512,
+#             expansion=4.0,
+#             max_seq_len=16
+#         ),
+#         TransformerBlock(
+#             num_heads=8,
+#             hidden_size=512,
+#             expansion=4.0,
+#             max_seq_len=16
+#         )
+#     )
+#     x = torch.randn(2, 16, 512)
+#     out = model(x)
+#     print(out.shape)

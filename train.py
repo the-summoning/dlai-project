@@ -214,7 +214,23 @@ if __name__ == "__main__":
     # Initialize model
     print("Creating model...")
 
-    network = nn.Identity()
+    # network = nn.Identity()
+
+    network = nn.Sequential(
+        TransformerBlock(
+            num_heads=8,
+            hidden_size=512,
+            expansion=4.0,
+            max_seq_len=metadata["seq_len"] + num_registers
+        ),
+        TransformerBlock(
+            num_heads=8,
+            hidden_size=512,
+            expansion=4.0,
+            max_seq_len=metadata["seq_len"] + num_registers
+        )
+    )
+
     model = TinyRecursiveModel(
         hidden_size=512,
         vocab_size=vocab_size,
