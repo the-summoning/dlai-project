@@ -4,7 +4,7 @@ import torch
 import torch.nn as nn
 import json
 
-from datasets.puzzle_dataset import PuzzleDataset
+from puzzle_datasets.puzzle_dataset import PuzzleDataset, IGNORE_LABEL_ID
 from model.trm import TinyRecursiveModel
 from model.layers import TransformerBlock
 from torch.optim import AdamW
@@ -13,8 +13,6 @@ from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
-
-from datasets.puzzle_dataset import IGNORE_LABEL_ID
 
 
 def s(x, epsilon=1e-30):
