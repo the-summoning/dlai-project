@@ -62,12 +62,12 @@ def update_ema_model(
 
 @torch.inference_mode()
 def validate(
-    ema_model: TinyRecursiveModel,
+    model: TinyRecursiveModel,
     val_dataset: PuzzleDataset,
     device: torch.device,
     max_recurrent_steps: int,
 ) -> dict:
-    ema_model.eval()
+    model.eval()
     num_batches = val_dataset.num_groups // val_dataset.batch_size
 
     total_tokens = 0
@@ -83,7 +83,7 @@ def validate(
         dataset_input = batch["inputs"].to(device)
         labels = batch["labels"].to(device)
 
-        _, _, logits, _ = ema_model.predict(dataset_input, N_supervision=max_recurrent_steps)
+        _, _, logits, _ = model.predict(dataset_input, N_supervision=max_recurrent_steps)
         final_preds = logits.argmax(-1)  # (B, seq)
 
         # ── Loss ──────────────────────────────────────────────────────────
@@ -125,6 +125,7 @@ def train(
     max_recurrent_steps: int = 12,
     warmup_steps: int = 2000,
     ema_decay: float = 0.999,
+    use_ema: bool = True,
     patience: int = 5,
     checkpoint_dir: str = "checkpoints",
 ):
@@ -134,11 +135,13 @@ def train(
     model.to(device)
     model.train()
 
-    ema_model = copy.deepcopy(model)
-    ema_model.to(device)
-    ema_model.eval()
-    for p in ema_model.parameters():
-        p.requires_grad_(False)
+    ema_model = None
+    if use_ema:
+        ema_model = copy.deepcopy(model)
+        ema_model.to(device)
+        ema_model.eval()
+        for p in ema_model.parameters():
+            p.requires_grad_(False)
 
     optim = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
     scheduler = LambdaLR(optim, lambda step: min((step + 1) / warmup_steps, 1.0))
@@ -155,7 +158,8 @@ def train(
         print(f"Resuming from {resume_path}")
         ckpt = torch.load(resume_path, map_location=device)
         model.load_state_dict(ckpt["model_state_dict"])
-        ema_model.load_state_dict(ckpt["ema_model_state_dict"])
+        if use_ema and ema_model is not None:
+            ema_model.load_state_dict(ckpt["ema_model_state_dict"])
         optim.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         global_step = ckpt["global_step"]
@@ -202,7 +206,9 @@ def train(
                 optim.zero_grad(set_to_none=True)
                 
                 scheduler.step()
-                update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
+
+                if use_ema and ema_model is not None:
+                    update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
 
                 inputs = inputs.detach()
                 outputs = outputs.detach()
@@ -233,7 +239,7 @@ def train(
 
         # ── Validation ────────────────────────────────────────────────────
         metrics = validate(
-            ema_model=ema_model,
+            model=model if not use_ema else ema_model, # type: ignore
             val_dataset=val_dataset,
             device=device,
             max_recurrent_steps=max_recurrent_steps,
@@ -254,7 +260,7 @@ def train(
                 "epoch": epoch,
                 "global_step": global_step,
                 "model_state_dict": model.state_dict(),
-                "ema_model_state_dict": ema_model.state_dict(),
+                "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
                 "optimizer_state_dict": optim.state_dict(),
                 "scheduler_state_dict": scheduler.state_dict(),
                 "metrics": metrics,
@@ -271,8 +277,9 @@ def train(
 
     # ── Restore best ──────────────────────────────────────────────────────
     best_ckpt = torch.load(checkpoint_path / "best.pt", map_location=device)
-    ema_model.load_state_dict(best_ckpt["ema_model_state_dict"])
     model.load_state_dict(best_ckpt["model_state_dict"])
+    if use_ema and ema_model is not None:
+        ema_model.load_state_dict(best_ckpt["ema_model_state_dict"])
     print(f"Restored best checkpoint from epoch {best_ckpt['epoch']} (exact_match={best_ckpt['metrics']['exact_match']:.4f})")
 
     print("Training complete")
@@ -297,6 +304,8 @@ def parse_args():
                         help="Learning rate for optimizer")
     parser.add_argument("--ema-decay", type=float, default=0.999,
                         help="EMA decay rate")
+    parser.add_argument("--no-ema", action="store_true",
+                        help="Disable EMA updates and validate/train the base model normally")
     parser.add_argument("--max-recurrent-steps", type=int, default=16,
                         help="Maximum number of recurrent steps during training and validation")
     parser.add_argument("--mock", action="store_true",
@@ -357,6 +366,7 @@ if __name__ == "__main__":
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
     print(f"Train dataset: {args.train_inputs_path}")
     print(f"Test dataset: {args.test_inputs_path}")
+    print(f"EMA enabled: {not args.no_ema}")
 
     # Initialize model
     print("Creating model...")
