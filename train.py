@@ -1,7 +1,9 @@
+import argparse
 import copy
 import torch
 import torch.nn as nn
 import json
+import numpy as np
 
 from maze_dataset import MazeDataset
 from model.trm import TinyRecursiveModel
@@ -61,9 +63,61 @@ def update_ema_model(
         ema_buffers[name].copy_(model_buffers[name])
 
 
+
+@torch.inference_mode()
+def validate(
+    ema_model: TinyRecursiveModel,
+    val_dataset: MazeDataset,
+    device: torch.device,
+    max_recurrent_steps: int,
+) -> dict:
+    ema_model.eval()
+    num_batches = val_dataset.num_groups // val_dataset.batch_size
+
+    total_tokens = 0
+    correct_tokens = 0
+    total_puzzles = 0
+    exact_puzzles = 0
+    total_val_loss = 0.0
+
+    pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
+    
+    for batch in pbar:
+        dataset_input = batch["inputs"].to(device)
+        labels = batch["labels"].to(device)
+
+        _, _, logits, _ = ema_model.predict(dataset_input, N_supervision=max_recurrent_steps)
+        final_preds = logits.argmax(-1)  # (B, seq)
+
+        # ── Loss ──────────────────────────────────────────────────────────
+        mask = labels != IGNORE_LABEL_ID
+        loss_counts = mask.sum(-1).clamp_min(1)
+        lm_loss = (
+            stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask)
+            / loss_counts.unsqueeze(-1)
+        ).sum()
+        total_val_loss += lm_loss.item()
+
+        # ── Token Accuracy ─────────────────────────────────────────────────
+        correct_tokens += (mask & (final_preds == labels)).sum().item()
+        total_tokens   += mask.sum().item()
+
+        # ── Exact Match ────────────────────────────────────────────────────
+        exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
+        total_puzzles += labels.shape[0]
+
+    return {
+        "val_loss": total_val_loss / max(total_puzzles, 1),
+        "token_acc": correct_tokens / max(total_tokens, 1),
+        "exact_match": exact_puzzles  / max(total_puzzles, 1),
+    }
+
+
+
 def train(
     model: TinyRecursiveModel,
-    dataset: MazeDataset,
+    train_dataset: MazeDataset,
+    val_dataset: MazeDataset,
     device: torch.device,
     learning_rate: float = 1e-4,
     weight_decay: float = 1.0,
@@ -96,13 +150,13 @@ def train(
         lambda step: min((step + 1) / warmup_steps, 1.0)
     )
 
-    num_batches = dataset.num_groups // dataset.batch_size
+    num_batches = train_dataset.num_groups // train_dataset.batch_size
 
     global_step = 0
 
     for epoch in range(1, epochs + 1):
         pbar = tqdm(
-            dataset,
+            train_dataset,
             total=num_batches,
             desc=f"epoch {epoch}"
         )
@@ -175,61 +229,102 @@ def train(
 
                 if outputs.numel() == 0:
                     break
+    
+        # Validation epoch
+        metrics = validate(
+            ema_model=ema_model,
+            val_dataset=val_dataset,
+            device=device,
+            max_recurrent_steps=max_recurrent_steps,
+        )
+        print(
+            f"[epoch {epoch}] "
+            f"val_loss={metrics['val_loss']:.4f} | "
+            f"token_acc={metrics['token_acc']:.4f} | "
+            f"exact_match={metrics['exact_match']:.4f}"
+        )                    
+
 
     print("Training complete")
 
     return model, ema_model
 
 
+def parse_args():
+    parser = argparse.ArgumentParser(description="Train TinyRecursiveModel on maze dataset")
+    parser.add_argument("--batch-size", type=int, default=32,
+                        help="Batch size for the MazeDataset")
+    parser.add_argument("--epochs", type=int, default=100,
+                        help="Number of training epochs")
+    parser.add_argument("--learning-rate", type=float, default=1e-4,
+                        help="Learning rate for optimizer")
+    parser.add_argument("--ema-decay", type=float, default=0.999,
+                        help="EMA decay rate")
+    parser.add_argument("--max-recurrent-steps", type=int, default=16,
+                        help="Maximum number of recurrent steps during training and validation")
+    parser.add_argument("--mock", action="store_true",
+                        help="Use nn.Identity() as the network for rapid debugging")
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    # Configuration for debugging
+    args = parse_args()
+
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     print(f"Using device: {device}")
     
-    # Dataset paths
-    data_dir = "data/maze-30x30-hard-1k/train"
+    data_dir = "data/maze-30x30-hard-1k"
 
-    with open(f"{data_dir}/metadata.json", "r") as f:
+    with open(f"{data_dir}/train/metadata.json", "r") as f:
         metadata = json.load(f)
-            # Get vocab size from dataset
-        vocab_size = metadata["vocab_size"]
-        seq_len = metadata["seq_len"]
+    
+    vocab_size = metadata["vocab_size"]
+    seq_len = metadata["seq_len"]
     
     # Load dataset
-    print("Loading dataset...")
-    dataset = MazeDataset(
-        inputs_path=f"{data_dir}/inputs.npy",
-        labels_path=f"{data_dir}/labels.npy",
-        group_indices_path=f"{data_dir}/group_indices.npy",
-        batch_size=8,
+    print("Loading datasets...")
+    train_dataset = MazeDataset(
+        inputs_path=f"{data_dir}/train/inputs.npy",
+        labels_path=f"{data_dir}/train/labels.npy",
+        group_indices_path=f"{data_dir}/train/group_indices.npy",
+        batch_size=args.batch_size,
         seed=42,
         ignore_label_id=metadata["ignore_label_id"]
     )
-    
-    num_registers = 16
+    val_dataset = MazeDataset(
+        inputs_path=f"{data_dir}/test/inputs.npy",
+        labels_path=f"{data_dir}/test/labels.npy",
+        group_indices_path=f"{data_dir}/test/group_indices.npy",
+        batch_size=args.batch_size,
+        seed=42,
+        ignore_label_id=metadata["ignore_label_id"]
+    )    
+
+    num_registers = 1 # just CLS token, used to halt
     
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
-    print(f"Dataset has {dataset.num_groups} puzzle groups")
 
     # Initialize model
     print("Creating model...")
 
-    # network = nn.Identity()
-
-    network = nn.Sequential(
-        TransformerBlock(
-            num_heads=8,
-            hidden_size=512,
-            expansion=4.0,
-            max_seq_len=metadata["seq_len"] + num_registers
-        ),
-        TransformerBlock(
-            num_heads=8,
-            hidden_size=512,
-            expansion=4.0,
-            max_seq_len=metadata["seq_len"] + num_registers
+    if args.mock:
+        network = nn.Identity()
+        print("Using mock network: nn.Identity()")
+    else:
+        network = nn.Sequential(
+            TransformerBlock(
+                num_heads=8,
+                hidden_size=512,
+                expansion=4.0,
+                max_seq_len=seq_len + num_registers
+            ),
+            TransformerBlock(
+                num_heads=8,
+                hidden_size=512,
+                expansion=4.0,
+                max_seq_len=seq_len + num_registers
+            )
         )
-    )
 
     model = TinyRecursiveModel(
         hidden_size=512,
@@ -242,20 +337,20 @@ if __name__ == "__main__":
     
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
     
-    # Start training with 3 epochs for debugging
-    print("--- Starting Training (3 epochs) ---")
+    print(f"--- Starting Training ({args.epochs} epochs) ---")
     trained_model, ema_model = train(
         model=model,
-        dataset=dataset,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
         device=device,
-        learning_rate=1e-4,
+        learning_rate=args.learning_rate,
         weight_decay=1.0,
-        batch_size=8,
-        epochs=3,
+        batch_size=args.batch_size,
+        epochs=args.epochs,
         halt_prob_thres=0.5,
-        max_recurrent_steps=12,
+        max_recurrent_steps=args.max_recurrent_steps,
         warmup_steps=100,
-        ema_decay=0.999,
+        ema_decay=args.ema_decay,
     )
     
     print("--- Training finished ---")
