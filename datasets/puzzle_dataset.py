@@ -7,13 +7,12 @@ from torch.utils.data import IterableDataset
 IGNORE_LABEL_ID = -100
 
 
-class MazeDataset(IterableDataset):
+class PuzzleDataset(IterableDataset):
     """
     Batch semantics:
         - 1 random augmentation per original puzzle
         - no duplicate puzzle inside a batch
     """
-
 
     def __init__(
         self,
@@ -35,6 +34,7 @@ class MazeDataset(IterableDataset):
 
         self.num_groups = len(self.group_indices) - 1
         self.ignore_label_id = ignore_label_id
+
 
     def __iter__(self):
         # shuffle original puzzles

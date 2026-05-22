@@ -6,9 +6,9 @@ from tqdm import tqdm
 from pathlib import Path
 from huggingface_hub import hf_hub_download
 
-DIHEDRAL_INVERSE = [0, 3, 2, 1, 4, 5, 6, 7]
 CHARSET = "# SGo"
 GRID_SIZE = (30, 30)
+DIHEDRAL_INVERSE = [0, 3, 2, 1, 4, 5, 6, 7]
 
 
 def dihedral_transform(arr: np.ndarray, tid: int) -> np.ndarray:
