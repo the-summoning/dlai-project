@@ -77,10 +77,7 @@ def validate(
     total_puzzles = 0
     exact_puzzles = 0
     total_val_loss = 0.0
-    correct_path_tokens = 0
-    total_path_tokens = 0
 
-    wall_id = int(val_dataset.char2id[ord('#')])
 
     pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
     
@@ -108,16 +105,11 @@ def validate(
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
 
-        # ── Path Token Accuracy (esclude muri e padding) ──────────────────────
-        path_mask = mask & (labels != wall_id)
-        correct_path_tokens += (path_mask & (final_preds == labels)).sum().item()
-        total_path_tokens += path_mask.sum().item()
 
     return {
         "val_loss": total_val_loss / max(total_puzzles, 1),
         "token_acc": correct_tokens / max(total_tokens, 1),
-        "exact_match": exact_puzzles  / max(total_puzzles, 1),
-        "path_token_acc": correct_path_tokens / max(total_path_tokens, 1),
+        "exact_match": exact_puzzles  / max(total_puzzles, 1)
     }
 
 
@@ -252,7 +244,6 @@ def train(
             f"[epoch {epoch}] "
             f"val_loss={metrics['val_loss']:.4f} | "
             f"token_acc={metrics['token_acc']:.4f} | "
-            f"path_token_acc={metrics['path_token_acc']:.4f} | "
             f"exact_match={metrics['exact_match']:.4f}"
         )
 
