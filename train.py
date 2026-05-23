@@ -229,10 +229,10 @@ def train(
                 if not halt_mask.any():
                     continue
                 
-                inputs  = inputs[~halt_mask]
+                inputs = inputs[~halt_mask]
                 outputs = outputs[~halt_mask]
                 latents = latents[~halt_mask]
-                labels  = labels[~halt_mask]
+                labels = labels[~halt_mask]
                 
                 if outputs.numel() == 0:
                     break
@@ -308,6 +308,8 @@ def parse_args():
                         help="Disable EMA updates and validate/train the base model normally")
     parser.add_argument("--max-recurrent-steps", type=int, default=16,
                         help="Maximum number of recurrent steps during training and validation")
+    parser.add_argument("--patience", type=int, default=5,
+                        help="Number of epochs with no improvement before early stopping")
     parser.add_argument("--mock", action="store_true",
                         help="Use nn.Identity() as the network for rapid debugging")
     return parser.parse_args()
@@ -426,7 +428,7 @@ if __name__ == "__main__":
         warmup_steps=100,
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
-        patience=5,
+        patience=args.patience,
         checkpoint_dir="checkpoints",
     )
     
