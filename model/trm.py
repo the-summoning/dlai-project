@@ -85,11 +85,79 @@ class TinyRecursiveModel(nn.Module):
 
 
     @torch.inference_mode()
-    def predict(self, inputs, N_supervision):
+    def predict(self, inputs: torch.Tensor, N_supervision: int):
         x = self.embedding(inputs)
         y, z = self.get_initial_for_inputs(x)
 
         for step in range(N_supervision):            
-            y, z, predictions, halt_logits = self.forward(x, y, z)
+            y, z, logits, halt_logits = self.forward(x, y, z)
 
-        return y, z, predictions, halt_logits
+        return y, z, logits, halt_logits
+    
+
+    @torch.inference_mode()
+    def probabilistic_predict(
+        self,
+        inputs: torch.Tensor,
+        N_supervision: int,
+        rollouts: int = 100,
+        std: float = 0.2,
+    ):
+        B = inputs.shape[0]
+
+        x = self.embedding(inputs)
+
+        # (R, B, ...)
+        x = x.unsqueeze(0).expand(
+            rollouts,
+            *x.shape
+        )
+
+        # (R*B, ...)
+        x = x.reshape(
+            rollouts * B,
+            *x.shape[2:]
+        )
+
+        y, z = self.get_initial_for_inputs(x)
+
+        for _ in range(N_supervision):
+            z = z + torch.randn_like(z) * std
+            y, z, logits, halt_logits = self.forward(x, y, z)
+
+        # reshape back:
+        y = y.view(rollouts, B, *y.shape[1:])
+        z = z.view(rollouts, B, *z.shape[1:])
+        logits = logits.view(
+            rollouts,
+            B,
+            *logits.shape[1:]
+        )
+        halt_logits = halt_logits.view(
+            rollouts,
+            B,
+            *halt_logits.shape[1:]
+        )
+
+        # best rollout per sample
+        best_idx = halt_logits.squeeze(-1).argmax(dim=0)
+
+        batch_idx = torch.arange(
+            B,
+            device=best_idx.device
+        )
+
+        best_y = y[best_idx, batch_idx]
+        best_z = z[best_idx, batch_idx]
+        best_logits = logits[best_idx, batch_idx]
+        best_halt_logits = halt_logits[
+            best_idx,
+            batch_idx
+        ]
+
+        return (
+            best_y,
+            best_z,
+            best_logits,
+            best_halt_logits,
+        )

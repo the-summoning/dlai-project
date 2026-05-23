@@ -83,7 +83,7 @@ def validate(
         dataset_input = batch["inputs"].to(device)
         labels = batch["labels"].to(device)
 
-        _, _, logits, _ = model.predict(dataset_input, N_supervision=max_recurrent_steps)
+        _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, 100, 0.2)
         final_preds = logits.argmax(-1)  # (B, seq)
 
         # ── Loss ──────────────────────────────────────────────────────────
@@ -316,16 +316,20 @@ def parse_args():
 
 
 
+# quick demo on local CPU
 # python train.py \
 #   --train-inputs-path data/sudoku4x4/train/inputs.npy \
 #   --train-labels-path data/sudoku4x4/train/labels.npy \
 #   --test-inputs-path data/sudoku4x4/test/inputs.npy \
 #   --test-labels-path data/sudoku4x4/test/labels.npy \
-#   --batch-size 32 \
-#   --epochs 10 \
+#   --batch-size 4 \
+#   --epochs 2 \
 #   --learning-rate 1e-4 \
 #   --ema-decay 0.999 \
-#   --max-recurrent-steps 16
+#   --max-recurrent-steps 3 \
+#   --mock \
+#   --no-ema
+
 
 if __name__ == "__main__":
     args = parse_args()
