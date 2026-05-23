@@ -400,12 +400,18 @@ if __name__ == "__main__":
     )
     
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
+
     print(f"\n--- Starting Training ({args.epochs} epochs) ---")
     print(f"Batch size: {args.batch_size}")
     print(f"Learning rate: {args.learning_rate}")
-    print(f"EMA decay: {args.ema_decay}")
     print(f"Max recurrent steps: {args.max_recurrent_steps}")
-    print()
+
+    if args.no_ema:
+        print("EMA updates disabled. Validating and checkpointing the base model.")
+    else:
+        print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
+
+
     trained_model, ema_model = train(
         model=model,
         train_dataset=train_dataset,
@@ -419,6 +425,9 @@ if __name__ == "__main__":
         max_recurrent_steps=args.max_recurrent_steps,
         warmup_steps=100,
         ema_decay=args.ema_decay,
+        use_ema=not args.no_ema,
+        patience=5,
+        checkpoint_dir="checkpoints",
     )
     
     print("--- Training finished ---")
