@@ -100,64 +100,63 @@ class TinyRecursiveModel(nn.Module):
         self,
         inputs: torch.Tensor,
         N_supervision: int,
-        rollouts: int = 100,
+        rollouts: int = 32,
         std: float = 0.2,
     ):
         B = inputs.shape[0]
 
         x = self.embedding(inputs)
 
-        # (R, B, ...)
-        x = x.unsqueeze(0).expand(
-            rollouts,
-            *x.shape
-        )
-
         # (R*B, ...)
-        x = x.reshape(
-            rollouts * B,
-            *x.shape[2:]
-        )
+        x = x.repeat(rollouts, 1, 1)
 
         y, z = self.get_initial_for_inputs(x)
 
-        for _ in range(N_supervision):
-            z = z + torch.randn_like(z) * std
+        noise = torch.randn(
+            N_supervision,
+            *z.shape,
+            device=z.device,
+            dtype=z.dtype,
+        ).mul_(std)
+
+        for i in range(N_supervision):
+            z = z + noise[i]
             y, z, logits, halt_logits = self.forward(x, y, z)
 
-        # reshape back:
-        y = y.view(rollouts, B, *y.shape[1:])
-        z = z.view(rollouts, B, *z.shape[1:])
-        logits = logits.view(
+        y = y.reshape(
+            rollouts,
+            B,
+            *y.shape[1:]
+        )
+
+        z = z.reshape(
+            rollouts,
+            B,
+            *z.shape[1:]
+        )
+
+        logits = logits.reshape(
             rollouts,
             B,
             *logits.shape[1:]
         )
-        halt_logits = halt_logits.view(
+
+        halt_logits = halt_logits.reshape(
             rollouts,
             B,
             *halt_logits.shape[1:]
         )
 
-        # best rollout per sample
-        best_idx = halt_logits.squeeze(-1).argmax(dim=0)
+        best_idx = halt_logits.squeeze(-1).argmax(0)
 
         batch_idx = torch.arange(
             B,
-            device=best_idx.device
+            device=x.device,
         )
 
-        best_y = y[best_idx, batch_idx]
-        best_z = z[best_idx, batch_idx]
-        best_logits = logits[best_idx, batch_idx]
-        best_halt_logits = halt_logits[
-            best_idx,
-            batch_idx
-        ]
-
         return (
-            best_y,
-            best_z,
-            best_logits,
-            best_halt_logits,
+            y[best_idx, batch_idx],
+            z[best_idx, batch_idx],
+            logits[best_idx, batch_idx],
+            halt_logits[best_idx, batch_idx],
         )
