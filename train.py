@@ -248,6 +248,8 @@ def parse_args():
                         help="Path to save/load the model checkpoint")
     parser.add_argument("--hidden-size", type=int, default=512,
                         help="Hidden size for TransformerBlock layers and model")
+    parser.add_argument("--num-transformer-blocks", type=int, default=4,
+                        help="Number of TransformerBlock layers in the network")
     return parser.parse_args()
 
 
@@ -318,20 +320,17 @@ if __name__ == "__main__":
         network = nn.Identity()
         print("Using mock network: nn.Identity()")
     else:
-        network = nn.Sequential(
-            TransformerBlock(
-                num_heads=8,
-                hidden_size=args.hidden_size,
-                expansion=4.0,
-                max_seq_len=seq_len + num_registers
-            ),
-            TransformerBlock(
-                num_heads=8,
-                hidden_size=args.hidden_size,
-                expansion=4.0,
-                max_seq_len=seq_len + num_registers
+        blocks = []
+        for _ in range(args.num_transformer_blocks):
+            blocks.append(
+                TransformerBlock(
+                    num_heads=8,
+                    hidden_size=args.hidden_size,
+                    expansion=4.0,
+                    max_seq_len=seq_len + num_registers
+                )
             )
-        )
+        network = nn.Sequential(*blocks)
 
     model = TinyRecursiveModel(
         hidden_size=args.hidden_size,
