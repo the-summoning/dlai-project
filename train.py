@@ -13,28 +13,8 @@ from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
-
-
-def s(x, epsilon=1e-30):
-    return torch.where(x < 0, 1 / ( 1 - x + epsilon), x + 1)
-
-
-def log_stablemax(x, dim=-1):
-    s_x = s(x)
-    return torch.log( s_x / torch.sum(s_x, dim=dim, keepdim=True))
-
-
-def stablemax_cross_entropy(logits, labels, ignore_index: int = -100, valid_mask=None):
-    logprobs = log_stablemax(logits.to(torch.float64), dim=-1)
-
-    if valid_mask is None:
-        valid_mask = (labels != ignore_index)
-    
-    transformed_labels = torch.where(valid_mask, labels, 0)
-    prediction_logprobs = torch.gather(logprobs, index=transformed_labels.to(torch.long).unsqueeze(-1), dim=-1).squeeze(-1)
-
-    return -torch.where(valid_mask, prediction_logprobs, 0)
-
+from model.stablemax_ce_loss import stablemax_cross_entropy
+from evaluation import evaluate_model
 
 
 @torch.no_grad()
@@ -60,57 +40,6 @@ def update_ema_model(
 
 
 
-@torch.inference_mode()
-def validate(
-    model: TinyRecursiveModel,
-    val_dataset: PuzzleDataset,
-    device: torch.device,
-    max_recurrent_steps: int,
-) -> dict:
-    model.eval()
-    num_batches = val_dataset.num_groups // val_dataset.batch_size
-
-    total_tokens = 0
-    correct_tokens = 0
-    total_puzzles = 0
-    exact_puzzles = 0
-    total_val_loss = 0.0
-
-
-    pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
-    
-    for batch in pbar:
-        dataset_input = batch["inputs"].to(device)
-        labels = batch["labels"].to(device)
-
-        _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, 100, 0.2)
-        final_preds = logits.argmax(-1)  # (B, seq)
-
-        # ── Loss ──────────────────────────────────────────────────────────
-        mask = labels != IGNORE_LABEL_ID
-        loss_counts = mask.sum(-1).clamp_min(1)
-        lm_loss = (
-            stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask)
-            / loss_counts.unsqueeze(-1)
-        ).sum()
-        total_val_loss += lm_loss.item()
-
-        # ── Token Accuracy ─────────────────────────────────────────────────
-        correct_tokens += (mask & (final_preds == labels)).sum().item()
-        total_tokens   += mask.sum().item()
-
-        # ── Exact Match ────────────────────────────────────────────────────
-        exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
-        total_puzzles += labels.shape[0]
-
-
-    return {
-        "val_loss": total_val_loss / max(total_puzzles, 1),
-        "token_acc": correct_tokens / max(total_tokens, 1),
-        "exact_match": exact_puzzles  / max(total_puzzles, 1)
-    }
-
-
 
 def train(
     model: TinyRecursiveModel,
@@ -127,10 +56,10 @@ def train(
     ema_decay: float = 0.999,
     use_ema: bool = True,
     patience: int = 5,
-    checkpoint_dir: str = "checkpoints",
+    checkpoint_path: str = "checkpoints/best.pt",
 ):
-    checkpoint_path = Path(checkpoint_dir)
-    checkpoint_path.mkdir(parents=True, exist_ok=True)
+    checkpoint_file = Path(checkpoint_path)
+    checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
     model.to(device)
     model.train()
@@ -153,7 +82,7 @@ def train(
     patience_counter = 0
 
     # ── Resume from checkpoint ────────────────────────────────────────────
-    resume_path = checkpoint_path / "best.pt"
+    resume_path = checkpoint_file
     if resume_path.exists():
         print(f"Resuming from {resume_path}")
         ckpt = torch.load(resume_path, map_location=device)
@@ -238,11 +167,12 @@ def train(
                     break
 
         # ── Validation ────────────────────────────────────────────────────
-        metrics = validate(
+        metrics = evaluate_model(
             model=model if not use_ema else ema_model, # type: ignore
             val_dataset=val_dataset,
             device=device,
             max_recurrent_steps=max_recurrent_steps,
+            probabilist_trm=False
         )
         print(
             f"[epoch {epoch}] "
@@ -265,7 +195,7 @@ def train(
                 "scheduler_state_dict": scheduler.state_dict(),
                 "metrics": metrics,
                 "patience_counter": patience_counter,
-            }, checkpoint_path / "best.pt")
+            }, checkpoint_file)
 
             print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
         else:
@@ -276,10 +206,12 @@ def train(
                 break
 
     # ── Restore best ──────────────────────────────────────────────────────
-    best_ckpt = torch.load(checkpoint_path / "best.pt", map_location=device)
+    best_ckpt = torch.load(checkpoint_file, map_location=device)
     model.load_state_dict(best_ckpt["model_state_dict"])
+    
     if use_ema and ema_model is not None:
         ema_model.load_state_dict(best_ckpt["ema_model_state_dict"])
+    
     print(f"Restored best checkpoint from epoch {best_ckpt['epoch']} (exact_match={best_ckpt['metrics']['exact_match']:.4f})")
 
     print("Training complete")
@@ -312,6 +244,8 @@ def parse_args():
                         help="Number of epochs with no improvement before early stopping")
     parser.add_argument("--mock", action="store_true",
                         help="Use nn.Identity() as the network for rapid debugging")
+    parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
+                        help="Path to save/load the model checkpoint")
     return parser.parse_args()
 
 
@@ -328,7 +262,8 @@ def parse_args():
 #   --ema-decay 0.999 \
 #   --max-recurrent-steps 3 \
 #   --mock \
-#   --no-ema
+#   --no-ema \
+#   --checkpoint-path checkpoints/sudoku4x4.pt
 
 
 if __name__ == "__main__":
@@ -417,7 +352,6 @@ if __name__ == "__main__":
     else:
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
 
-
     trained_model, ema_model = train(
         model=model,
         train_dataset=train_dataset,
@@ -433,7 +367,7 @@ if __name__ == "__main__":
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
         patience=args.patience,
-        checkpoint_dir="checkpoints",
+        checkpoint_path=args.checkpoint_path,
     )
     
     print("--- Training finished ---")
