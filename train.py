@@ -246,6 +246,8 @@ def parse_args():
                         help="Use nn.Identity() as the network for rapid debugging")
     parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
                         help="Path to save/load the model checkpoint")
+    parser.add_argument("--hidden-size", type=int, default=512,
+                        help="Hidden size for TransformerBlock layers and model")
     return parser.parse_args()
 
 
@@ -319,20 +321,20 @@ if __name__ == "__main__":
         network = nn.Sequential(
             TransformerBlock(
                 num_heads=8,
-                hidden_size=512,
+                hidden_size=args.hidden_size,
                 expansion=4.0,
                 max_seq_len=seq_len + num_registers
             ),
             TransformerBlock(
                 num_heads=8,
-                hidden_size=512,
+                hidden_size=args.hidden_size,
                 expansion=4.0,
                 max_seq_len=seq_len + num_registers
             )
         )
 
     model = TinyRecursiveModel(
-        hidden_size=512,
+        hidden_size=args.hidden_size,
         vocab_size=vocab_size,
         network=network,
         n=6,
