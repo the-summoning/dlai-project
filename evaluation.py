@@ -142,7 +142,7 @@ if __name__ == '__main__':
     )
 
     checkpoint = torch.load(Path(args.checkpoint_path), map_location=device)
-    model.load_state_dict(checkpoint["model_state_dict"])
+    model.load_state_dict(checkpoint["ema_model_state_dict"])
     model.to(device)
 
     metrics = evaluate_model(
