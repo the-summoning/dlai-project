@@ -261,6 +261,8 @@ def parse_args():
                         help="Number of TransformerBlock layers in the network")
     parser.add_argument("--eval-interval", type=int, default=10,
                         help="Evaluation interval in epochs")
+    parser.add_argument("--enable-matryoshka", action="store_true",
+                        help="Enable Matryoshka training with multiple hidden sizes")
     return parser.parse_args()
 
 
@@ -365,8 +367,10 @@ if __name__ == "__main__":
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
     
     # [8, 16, 32..., hidden_size]
-    # matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
-    matryoshka_sizes = [args.hidden_size]
+    if args.enable_matryoshka:
+        matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
+    else:
+        matryoshka_sizes = [args.hidden_size]
 
     trained_model, ema_model = train(
         model=model,
