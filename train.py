@@ -128,7 +128,7 @@ def train(
                     W_m = model.prediction_head.weight[:, :m]
                     Q_m = model.halt_head.weight[:, :m]
 
-                    logits = F.linear(y[:, model.num_registers:, :m], W_m[:, :m])
+                    logits = F.linear(y[:, model.num_registers:, :m], W_m)
                     halt_logits = F.linear(y[:, 0, :m], Q_m, model.halt_head.bias).squeeze(-1)
 
                     is_correct = mask & (logits.argmax(dim=-1) == labels)
@@ -368,7 +368,7 @@ if __name__ == "__main__":
     
     # [8, 16, 32..., hidden_size]
     if args.enable_matryoshka:
-        matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
+        matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(args.hidden_size // 32)) + 1)]
     else:
         matryoshka_sizes = [args.hidden_size]
 
