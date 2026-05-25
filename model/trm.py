@@ -14,14 +14,18 @@ class TinyRecursiveModel(nn.Module):
     ):
         super().__init__()
 
-        self.y_init = nn.Buffer(
-            nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
-            persistent=True
-        )
-        self.z_init = nn.Buffer(
-            nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
-            persistent=True
-        )
+        # self.y_init = nn.Buffer(
+        #     nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
+        #     persistent=True
+        # )
+        # self.z_init = nn.Buffer(
+        #     nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
+        #     persistent=True
+        # )
+
+        # learnable inits seem to work better
+        self.y_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
+        self.z_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
 
         self.n = n
         self.T = T
