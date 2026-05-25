@@ -369,7 +369,9 @@ if __name__ == "__main__":
     # [8, 16, 32..., hidden_size]
     if args.enable_matryoshka:
         matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(args.hidden_size // 32)) + 1)]
+        print(f"Matryoshka training enabled with hidden sizes: {matryoshka_sizes}")
     else:
+        print("Matryoshka training disabled. Using single hidden size.")
         matryoshka_sizes = [args.hidden_size]
 
     trained_model, ema_model = train(
