@@ -59,6 +59,7 @@ def train(
     use_ema: bool = True,
     patience: int = 5,
     checkpoint_path: str = "checkpoints/checkpoint.pt",
+    eval_interval: int = 1,
 ):
     assert matryoshka_sizes is not None and len(matryoshka_sizes) > 0
 
@@ -182,53 +183,46 @@ def train(
                 if y.numel() == 0:
                     break
 
-        # ── Validation
-        metrics = evaluate_model(
-            model=model if not use_ema else ema_model, # type: ignore
-            val_dataset=val_dataset,
-            device=device,
-            max_recurrent_steps=max_recurrent_steps,
-            probabilist_trm=False
-        )
-        print(
-            f"[epoch {epoch}] "
-            f"val_loss={metrics['val_loss']:.4f} | "
-            f"token_acc={metrics['token_acc']:.4f} | "
-            f"exact_match={metrics['exact_match']:.4f}"
-        )
+        if epoch % eval_interval == 0:
+            # ── Validation
+            metrics = evaluate_model(
+                model=model if not use_ema else ema_model, # type: ignore
+                val_dataset=val_dataset,
+                device=device,
+                max_recurrent_steps=max_recurrent_steps,
+                probabilist_trm=False
+            )
+            print(
+                f"[epoch {epoch}] "
+                f"val_loss={metrics['val_loss']:.4f} | "
+                f"token_acc={metrics['token_acc']:.4f} | "
+                f"exact_match={metrics['exact_match']:.4f}"
+            )
 
-        # ── Checkpoint + Early stopping
-        if metrics["exact_match"] > best_exact_match:
-            best_exact_match = metrics["exact_match"]
-            patience_counter = 0
+            # ── Checkpoint + Early stopping
+            if metrics["exact_match"] > best_exact_match:
+                best_exact_match = metrics["exact_match"]
+                patience_counter = 0
 
-            torch.save({
-                "epoch": epoch,
-                "global_step": global_step,
-                "model_state_dict": model.state_dict(),
-                "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
-                "optimizer_state_dict": optim.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
-                "metrics": metrics,
-                "patience_counter": patience_counter,
-            }, checkpoint_file)
+                torch.save({
+                    "epoch": epoch,
+                    "global_step": global_step,
+                    "model_state_dict": model.state_dict(),
+                    "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
+                    "optimizer_state_dict": optim.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "metrics": metrics,
+                    "patience_counter": patience_counter,
+                }, checkpoint_file)
 
-            print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
-        else:
-            patience_counter += 1
-            print(f"  no improvement ({patience_counter}/{patience})")
-            if patience_counter >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
+                print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
+            else:
+                patience_counter += 1
+                print(f"  no improvement ({patience_counter}/{patience})")
+                if patience_counter >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
-    # ── Restore best ──────────────────────────────────────────────────────
-    best_ckpt = torch.load(checkpoint_file, map_location=device)
-    model.load_state_dict(best_ckpt["model_state_dict"])
-    
-    if use_ema and ema_model is not None:
-        ema_model.load_state_dict(best_ckpt["ema_model_state_dict"])
-    
-    print(f"Restored best checkpoint from epoch {best_ckpt['epoch']} (exact_match={best_ckpt['metrics']['exact_match']:.4f})")
 
     print("Training complete")
     return model, ema_model
@@ -266,6 +260,8 @@ def parse_args():
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
+    parser.add_argument("--eval-interval", type=int, default=10,
+                        help="Evaluation interval in epochs")
     return parser.parse_args()
 
 
@@ -388,7 +384,8 @@ if __name__ == "__main__":
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
         patience=args.patience,
-        checkpoint_path=args.checkpoint_path
+        checkpoint_path=args.checkpoint_path,
+        eval_interval=args.eval_interval
     )
     
     print("--- Training finished ---")
