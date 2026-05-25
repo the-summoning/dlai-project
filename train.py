@@ -115,11 +115,11 @@ def train(
 
             total_halted = 0
 
-            mask = (labels != IGNORE_LABEL_ID)
-            loss_counts = mask.sum(-1)
-            loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
-
             for step in range(1, max_recurrent_steps + 1):
+                mask = (labels != IGNORE_LABEL_ID)
+                loss_counts = mask.sum(-1)
+                loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
+
                 y, z = model(inputs, z, y)
 
                 total_loss = torch.zeros((), device=device)
