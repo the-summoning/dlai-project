@@ -3,6 +3,7 @@ import copy
 import torch
 import torch.nn as nn
 import json
+import math
 
 from puzzle_datasets.puzzle_dataset import PuzzleDataset, IGNORE_LABEL_ID
 from model.trm import TinyRecursiveModel
@@ -46,6 +47,7 @@ def train(
     train_dataset: PuzzleDataset,
     val_dataset: PuzzleDataset,
     device: torch.device,
+    matryoshka_sizes: list[int] = [512],
     learning_rate: float = 1e-4,
     weight_decay: float = 1.0,
     batch_size: int = 16,
@@ -56,8 +58,10 @@ def train(
     ema_decay: float = 0.999,
     use_ema: bool = True,
     patience: int = 5,
-    checkpoint_path: str = "checkpoints/best.pt",
+    checkpoint_path: str = "checkpoints/checkpoint.pt",
 ):
+    assert matryoshka_sizes is not None and len(matryoshka_sizes) > 0
+
     checkpoint_file = Path(checkpoint_path)
     checkpoint_file.parent.mkdir(parents=True, exist_ok=True)
 
@@ -81,7 +85,7 @@ def train(
     best_exact_match = -1.0
     patience_counter = 0
 
-    # ── Resume from checkpoint ────────────────────────────────────────────
+    # ── Resume from checkpoint
     resume_path = checkpoint_file
     if resume_path.exists():
         print(f"Resuming from {resume_path}")
@@ -97,6 +101,8 @@ def train(
         patience_counter = ckpt["patience_counter"]
         print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
 
+    weights = torch.ones(len(matryoshka_sizes), device=device)
+
     for epoch in range(start_epoch, epochs + 1):
         pbar = tqdm(train_dataset, total=num_batches, desc=f"epoch {epoch}")
 
@@ -105,27 +111,37 @@ def train(
             labels = batch["labels"].to(device)
 
             inputs = model.embedding(dataset_input)
-            outputs, latents = model.get_initial_for_inputs(inputs)
+            y, z = model.get_initial_for_inputs(inputs)
 
             total_halted = 0
 
+            mask = (labels != IGNORE_LABEL_ID)
+            loss_counts = mask.sum(-1)
+            loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
+
             for step in range(1, max_recurrent_steps + 1):
-                outputs, latents, logits, halt_logits = model(inputs, latents, outputs)
+                y, z = model(inputs, z, y)
 
-                mask = (labels != IGNORE_LABEL_ID)
-                loss_counts = mask.sum(-1)
-                loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
-                is_correct = mask & (logits.argmax(dim=-1) == labels)
-                seq_is_correct = is_correct.sum(-1) == loss_counts
+                total_loss = torch.zeros((), device=device)
 
-                lm_loss = (
-                    stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
-                ).sum()
-                
-                q_halt_loss = F.binary_cross_entropy_with_logits(
-                    halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="sum"
-                )
-                total_loss = lm_loss + 0.5 * q_halt_loss
+                for m, w in zip(matryoshka_sizes, weights):
+                    W_m = model.prediction_head.weight[:, :m]
+                    Q_m = model.halt_head.weight[:, :m]
+
+                    logits = F.linear(y[:, model.num_registers:, :m], W_m[:, :m])
+                    halt_logits = F.linear(y[:, 0, :m], Q_m, model.halt_head.bias).squeeze(-1)
+
+                    is_correct = mask & (logits.argmax(dim=-1) == labels)
+                    seq_is_correct = is_correct.sum(-1) == loss_counts
+    
+                    lm_loss = (
+                        stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
+                    ).sum()
+                    
+                    q_halt_loss = F.binary_cross_entropy_with_logits(
+                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="sum"
+                    )
+                    total_loss += w * (lm_loss + 0.5 * q_halt_loss)
 
                 total_loss.backward()
                 
@@ -140,8 +156,8 @@ def train(
                     update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
 
                 inputs = inputs.detach()
-                outputs = outputs.detach()
-                latents = latents.detach()
+                y = y.detach()
+                z = z.detach()
                 global_step += 1
 
                 halt_mask = halt_logits.sigmoid() >= halt_prob_thres
@@ -150,7 +166,7 @@ def train(
                 pbar.set_postfix(
                     loss=f"{total_loss.item():.3f}",
                     step=f"{step}/{max_recurrent_steps}",
-                    active=f"{outputs.shape[0]}/{batch_size}",
+                    active=f"{y.shape[0]}/{batch_size}",
                     ema=f"{ema_decay:.4f}",
                     halted=f"{total_halted}",
                 )
@@ -159,14 +175,14 @@ def train(
                     continue
                 
                 inputs = inputs[~halt_mask]
-                outputs = outputs[~halt_mask]
-                latents = latents[~halt_mask]
+                y = y[~halt_mask]
+                z = z[~halt_mask]
                 labels = labels[~halt_mask]
                 
-                if outputs.numel() == 0:
+                if y.numel() == 0:
                     break
 
-        # ── Validation ────────────────────────────────────────────────────
+        # ── Validation
         metrics = evaluate_model(
             model=model if not use_ema else ema_model, # type: ignore
             val_dataset=val_dataset,
@@ -181,7 +197,7 @@ def train(
             f"exact_match={metrics['exact_match']:.4f}"
         )
 
-        # ── Checkpoint + Early stopping ───────────────────────────────────
+        # ── Checkpoint + Early stopping
         if metrics["exact_match"] > best_exact_match:
             best_exact_match = metrics["exact_match"]
             patience_counter = 0
@@ -352,12 +368,16 @@ if __name__ == "__main__":
         print("EMA updates disabled. Validating and checkpointing the base model.")
     else:
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
+    
+    # [8, 16, 32..., hidden_size]
+    matryoshka_sizes = [8 * 2**i for i in range(int(math.log2(8)) + 1)]
 
     trained_model, ema_model = train(
         model=model,
         train_dataset=train_dataset,
         val_dataset=val_dataset,
         device=device,
+        matryoshka_sizes=matryoshka_sizes,
         learning_rate=args.learning_rate,
         weight_decay=1.0,
         batch_size=args.batch_size,
@@ -368,7 +388,7 @@ if __name__ == "__main__":
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
         patience=args.patience,
-        checkpoint_path=args.checkpoint_path,
+        checkpoint_path=args.checkpoint_path
     )
     
     print("--- Training finished ---")

@@ -1,5 +1,6 @@
 import torch
 import torch.nn as nn
+from torch.nn import functional as F
 
 
 class TinyRecursiveModel(nn.Module):
@@ -86,85 +87,90 @@ class TinyRecursiveModel(nn.Module):
         # recursing once to improve outputs and latents
         y, z = self.latent_recursion(x, y, z)
 
-        logits = self.prediction_head(y[:, self.num_registers:, :])
-        halt_logits = self.halt_head(y[:, 0, :]).squeeze(-1)  # (B,)
-
-        return y.detach(), z.detach(), logits, halt_logits
+        return y.detach(), z.detach()
 
 
     @torch.inference_mode()
-    def predict(self, inputs: torch.Tensor, N_supervision: int):
+    def predict(self, inputs: torch.Tensor, N_supervision: int, W_slice: int | None = None):
+        W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size\
+
         x = self.embedding(inputs)
         y, z = self.get_initial_for_inputs(x)
 
         for _ in range(N_supervision):            
-            y, z, logits, halt_logits = self.forward(x, y, z)
+            y, z = self.forward(x, y, z)
+
+        W_m = self.prediction_head.weight[:, :W_slice]
+        Q_m = self.halt_head.weight[:, :W_slice]
+
+        logits = F.linear(y[:, self.num_registers:, :W_slice], W_m[:, :W_slice])
+        halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
 
         return y, z, logits, halt_logits
     
 
-    @torch.inference_mode()
-    def probabilistic_predict(
-        self,
-        inputs: torch.Tensor,
-        N_supervision: int,
-        rollouts: int = 32,
-        std: float = 0.2,
-    ):
-        B = inputs.shape[0]
+    # @torch.inference_mode()
+    # def probabilistic_predict(
+    #     self,
+    #     inputs: torch.Tensor,
+    #     N_supervision: int,
+    #     rollouts: int = 32,
+    #     std: float = 0.2,
+    # ):
+    #     B = inputs.shape[0]
 
-        x = self.embedding(inputs)
+    #     x = self.embedding(inputs)
 
-        # (R*B, ...)
-        x = x.repeat(rollouts, 1, 1)
+    #     # (R*B, ...)
+    #     x = x.repeat(rollouts, 1, 1)
 
-        y, z = self.get_initial_for_inputs(x)
+    #     y, z = self.get_initial_for_inputs(x)
 
-        noise = torch.randn(
-            N_supervision,
-            *z.shape,
-            device=z.device,
-            dtype=z.dtype,
-        ).mul_(std)
+    #     noise = torch.randn(
+    #         N_supervision,
+    #         *z.shape,
+    #         device=z.device,
+    #         dtype=z.dtype,
+    #     ).mul_(std)
 
-        for i in range(N_supervision):
-            z = z + noise[i]
-            y, z, logits, halt_logits = self.forward(x, y, z)
+    #     for i in range(N_supervision):
+    #         z = z + noise[i]
+    #         y, z, logits, halt_logits = self.forward(x, y, z)
 
-        y = y.reshape(
-            rollouts,
-            B,
-            *y.shape[1:]
-        )
+    #     y = y.reshape(
+    #         rollouts,
+    #         B,
+    #         *y.shape[1:]
+    #     )
 
-        z = z.reshape(
-            rollouts,
-            B,
-            *z.shape[1:]
-        )
+    #     z = z.reshape(
+    #         rollouts,
+    #         B,
+    #         *z.shape[1:]
+    #     )
 
-        logits = logits.reshape(
-            rollouts,
-            B,
-            *logits.shape[1:]
-        )
+    #     logits = logits.reshape(
+    #         rollouts,
+    #         B,
+    #         *logits.shape[1:]
+    #     )
 
-        halt_logits = halt_logits.reshape(
-            rollouts,
-            B,
-            *halt_logits.shape[1:]
-        )
+    #     halt_logits = halt_logits.reshape(
+    #         rollouts,
+    #         B,
+    #         *halt_logits.shape[1:]
+    #     )
 
-        best_idx = halt_logits.squeeze(-1).argmax(0)
+    #     best_idx = halt_logits.squeeze(-1).argmax(0)
 
-        batch_idx = torch.arange(
-            B,
-            device=x.device,
-        )
+    #     batch_idx = torch.arange(
+    #         B,
+    #         device=x.device,
+    #     )
 
-        return (
-            y[best_idx, batch_idx],
-            z[best_idx, batch_idx],
-            logits[best_idx, batch_idx],
-            halt_logits[best_idx, batch_idx],
-        )
+    #     return (
+    #         y[best_idx, batch_idx],
+    #         z[best_idx, batch_idx],
+    #         logits[best_idx, batch_idx],
+    #         halt_logits[best_idx, batch_idx],
+    #     )

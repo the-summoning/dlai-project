@@ -37,7 +37,8 @@ def evaluate_model(
         labels = batch["labels"].to(device)
         
         if probabilist_trm:
-            _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
+            pass
+            #_, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
         else:
             _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
 
