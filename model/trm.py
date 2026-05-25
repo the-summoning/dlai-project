@@ -1,7 +1,5 @@
 import torch
 import torch.nn as nn
-import torch.nn.functional as F
-
 
 
 class TinyRecursiveModel(nn.Module):
@@ -16,9 +14,15 @@ class TinyRecursiveModel(nn.Module):
     ):
         super().__init__()
 
-        self.output_init_embed = nn.Parameter(torch.randn(hidden_size) * 1e-2)
-        self.latent_init_embed = nn.Parameter(torch.randn(hidden_size) * 1e-2)
-        
+        self.y_init = nn.Buffer(
+            nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
+            persistent=True
+        )
+        self.z_init = nn.Buffer(
+            nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
+            persistent=True
+        )
+
         self.n = n
         self.T = T
         
@@ -49,10 +53,10 @@ class TinyRecursiveModel(nn.Module):
     def get_initial_for_inputs(self, inputs):
         batch_size, seq_len, _ = inputs.shape
 
-        outputs = self.output_init_embed.expand(batch_size, seq_len, -1)  # (b n d)
-        latents = self.latent_init_embed.expand(batch_size, seq_len, -1)  # (b n d)
+        y_init = self.y_init.expand(batch_size, seq_len, -1)  # (b n d)
+        z_init = self.z_init.expand(batch_size, seq_len, -1)  # (b n d)
 
-        return outputs, latents
+        return y_init, z_init
 
     def latent_recursion(self, x, y, z):
         for _ in range(self.n):
@@ -89,7 +93,7 @@ class TinyRecursiveModel(nn.Module):
         x = self.embedding(inputs)
         y, z = self.get_initial_for_inputs(x)
 
-        for step in range(N_supervision):            
+        for _ in range(N_supervision):            
             y, z, logits, halt_logits = self.forward(x, y, z)
 
         return y, z, logits, halt_logits
