@@ -47,7 +47,7 @@ def train(
     device: torch.device,
     matryoshka_sizes: list[int] = [512],
     learning_rate: float = 1e-4,
-    weight_decay: float = 1.0,
+    weight_decay: float = 1e-3,
     batch_size: int = 16,
     epochs: int = 2,
     halt_prob_thres: float = 0.5,
@@ -139,7 +139,7 @@ def train(
                     ).mean() # .sum()
                     
                     q_halt_loss = F.binary_cross_entropy_with_logits(
-                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="sum"
+                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
                     )
                     total_loss += w * (lm_loss + 0.5 * q_halt_loss)
 
@@ -381,7 +381,7 @@ if __name__ == "__main__":
         device=device,
         matryoshka_sizes=matryoshka_sizes,
         learning_rate=args.learning_rate,
-        weight_decay=1.0,
+        weight_decay=0.001,
         batch_size=args.batch_size,
         epochs=args.epochs,
         halt_prob_thres=0.5,
