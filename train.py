@@ -145,7 +145,7 @@ def train(
 
                 total_loss.backward()
                 
-                clip_grad_norm_(model.parameters(), max_norm=1.0)
+                # clip_grad_norm_(model.parameters(), max_norm=1.0)
                 
                 optim.step()
                 optim.zero_grad(set_to_none=True)
@@ -370,7 +370,7 @@ if __name__ == "__main__":
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
     
     # [8, 16, 32..., hidden_size]
-    matryoshka_sizes = [8 * 2**i for i in range(int(math.log2(8)) + 1)]
+    matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
 
     trained_model, ema_model = train(
         model=model,
