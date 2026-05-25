@@ -40,8 +40,6 @@ def update_ema_model(
         ema_buffers[name].copy_(model_buffers[name])
 
 
-
-
 def train(
     model: TinyRecursiveModel,
     train_dataset: PuzzleDataset,
@@ -102,7 +100,8 @@ def train(
         patience_counter = ckpt["patience_counter"]
         print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
 
-    weights = torch.ones(len(matryoshka_sizes), device=device)
+    # weights = torch.ones(len(matryoshka_sizes), device=device)
+    weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
 
     for epoch in range(start_epoch, epochs + 1):
         pbar = tqdm(train_dataset, total=num_batches, desc=f"epoch {epoch}")
@@ -366,7 +365,8 @@ if __name__ == "__main__":
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
     
     # [8, 16, 32..., hidden_size]
-    matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
+    # matryoshka_sizes = [32 * 2**i for i in range(int(math.log2(32)) + 1)]
+    matryoshka_sizes = [args.hidden_size]
 
     trained_model, ema_model = train(
         model=model,
