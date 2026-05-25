@@ -145,7 +145,7 @@ def train(
 
                 total_loss.backward()
                 
-                # clip_grad_norm_(model.parameters(), max_norm=1.0)
+                clip_grad_norm_(model.parameters(), max_norm=1.0)
                 
                 optim.step()
                 optim.zero_grad(set_to_none=True)
