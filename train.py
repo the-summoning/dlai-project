@@ -265,6 +265,8 @@ def parse_args():
                         help="Number of training epochs")
     parser.add_argument("--learning-rate", type=float, default=1e-4,
                         help="Learning rate for optimizer")
+    parser.add_argument("--weight-decay", type=float, default=1e-3,
+                        help="Weight decay coefficient for AdamW optimizer")
     parser.add_argument("--ema-decay", type=float, default=0.999,
                         help="EMA decay rate")
     parser.add_argument("--no-ema", action="store_true",
@@ -403,7 +405,7 @@ if __name__ == "__main__":
         device=device,
         matryoshka_sizes=matryoshka_sizes,
         learning_rate=args.learning_rate,
-        weight_decay=0.01,
+        weight_decay=args.weight_decay,
         batch_size=args.batch_size,
         epochs=args.epochs,
         halt_prob_thres=0.5,
