@@ -18,8 +18,9 @@ def evaluate_model(
     val_dataset: PuzzleDataset,
     device: torch.device,
     max_recurrent_steps: int,
-    probabilist_trm: bool = False,
-    probabilistic_rollouts: int = 1,
+    W_slice: int | None = None,
+    # probabilist_trm: bool = False,
+    # probabilistic_rollouts: int = 1,
 ) -> dict:
     model.eval()
     num_batches = val_dataset.num_groups // val_dataset.batch_size
@@ -36,11 +37,12 @@ def evaluate_model(
         dataset_input = batch["inputs"].to(device)
         labels = batch["labels"].to(device)
         
-        if probabilist_trm:
-            pass
-            #_, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
-        else:
-            _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
+        # if probabilist_trm:
+        #     pass
+        #     _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
+        # else:
+        #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
+        _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps, W_slice)
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -88,6 +90,8 @@ def parse_args():
                         help="Batch size for the PuzzleDataset")
     parser.add_argument("--max-recurrent-steps", type=int, default=12,
                         help="Maximum number of recurrent steps during evaluation")
+    parser.add_argument("--w-slice", type=int, default=None,
+                        help="Number of hidden dimensions to use from prediction/halt heads (W_slice).")
     parser.add_argument("--probabilistic-trm", action="store_true",
                         help="Use probabilistic TRM prediction instead of deterministic prediction")
     parser.add_argument("--probabilistic-rollouts", type=int, default=1,
@@ -152,8 +156,7 @@ if __name__ == '__main__':
         val_dataset,
         device,
         max_recurrent_steps=args.max_recurrent_steps,
-        probabilist_trm=args.probabilistic_trm,
-        probabilistic_rollouts=args.probabilistic_rollouts
+        W_slice=args.w_slice,
     )
 
     print("Evaluation results:")

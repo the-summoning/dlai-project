@@ -144,8 +144,8 @@ def train(
                     update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
 
                 inputs = inputs.detach()
-                y = y.detach()
-                z = z.detach()
+                # y = y.detach()
+                # z = z.detach()
                 global_step += 1
 
                 halt_mask = halt_logits.sigmoid() >= halt_prob_thres
@@ -177,7 +177,7 @@ def train(
                 val_dataset=val_dataset,
                 device=device,
                 max_recurrent_steps=max_recurrent_steps,
-                probabilist_trm=False
+                #probabilist_trm=False
             )
             print(
                 f"[epoch {epoch}] "
