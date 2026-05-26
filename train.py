@@ -158,10 +158,10 @@ def train(
 
                 lm_loss = (
                     stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
-                ).mean() # .sum()
+                ).sum()
                 
                 q_halt_loss = F.binary_cross_entropy_with_logits(
-                    halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
+                    halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="sum"
                 )
                 total_loss = lm_loss + 0.5 * q_halt_loss
 
