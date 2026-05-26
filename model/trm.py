@@ -25,8 +25,8 @@ class TinyRecursiveModel(nn.Module):
         # )
 
         # learnable inits seem to work better
-        self.y_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
-        self.z_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
+        self.y_init = nn.Parameter(torch.randn(hidden_size) * 1e-2) # nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
+        self.z_init = nn.Parameter(torch.randn(hidden_size) * 1e-2) # nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
 
         self.n = n
         self.T = T
