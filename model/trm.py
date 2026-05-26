@@ -103,7 +103,7 @@ class TinyRecursiveModel(nn.Module):
         W_m = self.prediction_head.weight[:, :W_slice]
         Q_m = self.halt_head.weight[:, :W_slice]
 
-        logits = F.linear(y[:, self.num_registers:, :W_slice], W_m[:, :W_slice])
+        logits = F.linear(y[:, self.num_registers:, :W_slice], W_m)
         halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
 
         return y, z, logits, halt_logits

@@ -68,10 +68,12 @@ def train(
     model.train()
 
     ema_model = None
+    
     if use_ema:
         ema_model = copy.deepcopy(model)
         ema_model.to(device)
         ema_model.eval()
+        
         for p in ema_model.parameters():
             p.requires_grad_(False)
 
@@ -84,24 +86,27 @@ def train(
     best_exact_match = -1.0
     patience_counter = 0
 
-    # ── Resume from checkpoint
-    resume_path = checkpoint_file
-    if resume_path.exists():
-        print(f"Resuming from {resume_path}")
-        ckpt = torch.load(resume_path, map_location=device)
-        model.load_state_dict(ckpt["model_state_dict"])
-        if use_ema and ema_model is not None:
-            ema_model.load_state_dict(ckpt["ema_model_state_dict"])
-        optim.load_state_dict(ckpt["optimizer_state_dict"])
-        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
-        global_step = ckpt["global_step"]
-        start_epoch = ckpt["epoch"] + 1
-        best_exact_match = ckpt["metrics"]["exact_match"]
-        patience_counter = ckpt["patience_counter"]
-        print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
+    # # ── Resume from checkpoint
+    # resume_path = checkpoint_file
+    # if resume_path.exists():
+    #     print(f"Resuming from {resume_path}")
+    #     ckpt = torch.load(resume_path, map_location=device)
+        
+    #     model.load_state_dict(ckpt["model_state_dict"])
+        
+    #     if use_ema and ema_model is not None:
+    #         ema_model.load_state_dict(ckpt["ema_model_state_dict"])
+        
+    #     optim.load_state_dict(ckpt["optimizer_state_dict"])
+    #     scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+    #     global_step = ckpt["global_step"]
+    #     start_epoch = ckpt["epoch"] + 1
+    #     best_exact_match = ckpt["metrics"]["exact_match"]
+    #     patience_counter = ckpt["patience_counter"]
+    #     print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
 
     # weights = torch.ones(len(matryoshka_sizes), device=device)
-    weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
+    #weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
 
     for epoch in range(start_epoch, epochs + 1):
         pbar = tqdm(train_dataset, total=num_batches, desc=f"epoch {epoch}")
@@ -120,28 +125,45 @@ def train(
                 loss_counts = mask.sum(-1)
                 loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
 
-                y, z = model(inputs, z, y)
+                y, z = model(inputs, y, z)
 
-                total_loss = torch.zeros((), device=device)
+                # total_loss = torch.zeros((), device=device)
 
-                for m, w in zip(matryoshka_sizes, weights):
-                    W_m = model.prediction_head.weight[:, :m]
-                    Q_m = model.halt_head.weight[:, :m]
+                # for m, w in zip(matryoshka_sizes, weights):
+                #     W_m = model.prediction_head.weight[:, :m]
+                #     Q_m = model.halt_head.weight[:, :m]
 
-                    logits = F.linear(y[:, model.num_registers:, :m], W_m)
-                    halt_logits = F.linear(y[:, 0, :m], Q_m, model.halt_head.bias).squeeze(-1)
+                #     logits = F.linear(y[:, model.num_registers:, :m], W_m)
+                #     halt_logits = F.linear(y[:, 0, :m], Q_m, model.halt_head.bias).squeeze(-1)
 
-                    is_correct = mask & (logits.argmax(dim=-1) == labels)
-                    seq_is_correct = is_correct.sum(-1) == loss_counts
+                #     is_correct = mask & (logits.argmax(dim=-1) == labels)
+                #     seq_is_correct = is_correct.sum(-1) == loss_counts
     
-                    lm_loss = (
-                        stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
-                    ).mean() # .sum()
+                #     lm_loss = (
+                #         stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
+                #     ).mean() # .sum()
                     
-                    q_halt_loss = F.binary_cross_entropy_with_logits(
-                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
-                    )
-                    total_loss += w * (lm_loss + 0.5 * q_halt_loss)
+                #     q_halt_loss = F.binary_cross_entropy_with_logits(
+                #         halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
+                #     )
+                #     total_loss += w * (lm_loss + 0.5 * q_halt_loss)
+
+                # total_loss.backward()
+
+                logits = model.prediction_head(y[:, model.num_registers:, :])
+                halt_logits = model.halt_head(y[:, 0, :]).squeeze(-1)  # (B,)
+
+                is_correct = mask & (logits.argmax(dim=-1) == labels)
+                seq_is_correct = is_correct.sum(-1) == loss_counts
+
+                lm_loss = (
+                    stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
+                ).mean() # .sum()
+                
+                q_halt_loss = F.binary_cross_entropy_with_logits(
+                    halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
+                )
+                total_loss = lm_loss + 0.5 * q_halt_loss
 
                 total_loss.backward()
                 
@@ -259,7 +281,7 @@ def parse_args():
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
-    parser.add_argument("--eval-interval", type=int, default=10,
+    parser.add_argument("--eval-interval", type=int, default=1,
                         help="Evaluation interval in epochs")
     parser.add_argument("--enable-matryoshka", action="store_true",
                         help="Enable Matryoshka training with multiple hidden sizes")
@@ -381,7 +403,7 @@ if __name__ == "__main__":
         device=device,
         matryoshka_sizes=matryoshka_sizes,
         learning_rate=args.learning_rate,
-        weight_decay=0.001,
+        weight_decay=0.01,
         batch_size=args.batch_size,
         epochs=args.epochs,
         halt_prob_thres=0.5,
