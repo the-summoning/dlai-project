@@ -3,3 +3,4 @@ __pycache__/
 .vscode/
 weights/weights/
 *.pt
+data/

@@ -339,8 +339,8 @@ if __name__ == "__main__":
         hidden_size=args.hidden_size,
         vocab_size=vocab_size,
         network=network,
-        n=10, # 6
-        T=5, # 3
+        n=6, # 6
+        T=3, # 3
         num_registers=num_registers,
     )
     
