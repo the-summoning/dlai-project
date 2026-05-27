@@ -56,7 +56,7 @@ def train(
     use_ema: bool = True,
     patience: int = 5,
     checkpoint_path: str = "checkpoints/checkpoint.pt",
-    eval_interval: int = 1,
+    #eval_interval: int = 1,
 ):
     assert matryoshka_sizes is not None and len(matryoshka_sizes) > 0
 
@@ -81,7 +81,7 @@ def train(
         optim,
         mode="max",
         factor=0.5,
-        patience=patience // eval_interval,
+        patience=patience // 2,
         threshold=1e-4,       #  >1% gain
         min_lr=1e-6
     )
@@ -174,48 +174,48 @@ def train(
                 if y.numel() == 0:
                     break
 
-        if epoch % eval_interval == 0:
-            # ── Validation
-            metrics = evaluate_model(
-                model=model if not use_ema else ema_model, # type: ignore
-                val_dataset=val_dataset,
-                device=device,
-                max_recurrent_steps=max_recurrent_steps,
-                #probabilist_trm=False
-            )
+        # if epoch % eval_interval == 0:
+        # ── Validation
+        metrics = evaluate_model(
+            model=model if not use_ema else ema_model, # type: ignore
+            val_dataset=val_dataset,
+            device=device,
+            max_recurrent_steps=max_recurrent_steps,
+            #probabilist_trm=False
+        )
 
-            scheduler.step(metrics["exact_match"])
+        scheduler.step(metrics["exact_match"])
 
-            print(
-                f"[epoch {epoch}] "
-                f"val_loss={metrics['val_loss']:.4f} | "
-                f"token_acc={metrics['token_acc']:.4f} | "
-                f"exact_match={metrics['exact_match']:.4f}"
-            )
+        print(
+            f"[epoch {epoch}] "
+            f"val_loss={metrics['val_loss']:.4f} | "
+            f"token_acc={metrics['token_acc']:.4f} | "
+            f"exact_match={metrics['exact_match']:.4f}"
+        )
 
-            # ── Checkpoint + Early stopping
-            if metrics["exact_match"] > best_exact_match:
-                best_exact_match = metrics["exact_match"]
-                patience_counter = 0
+        # ── Checkpoint + Early stopping
+        if metrics["exact_match"] > best_exact_match:
+            best_exact_match = metrics["exact_match"]
+            patience_counter = 0
 
-                torch.save({
-                    "epoch": epoch,
-                    "global_step": global_step,
-                    "model_state_dict": model.state_dict(),
-                    "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
-                    "optimizer_state_dict": optim.state_dict(),
-                    "scheduler_state_dict": scheduler.state_dict(),
-                    "metrics": metrics,
-                    "patience_counter": patience_counter,
-                }, checkpoint_file)
+            torch.save({
+                "epoch": epoch,
+                "global_step": global_step,
+                "model_state_dict": model.state_dict(),
+                "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
+                "optimizer_state_dict": optim.state_dict(),
+                "scheduler_state_dict": scheduler.state_dict(),
+                "metrics": metrics,
+                "patience_counter": patience_counter,
+            }, checkpoint_file)
 
-                print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
-            else:
-                patience_counter += 1
-                print(f"  no improvement ({patience_counter}/{patience})")
-                if patience_counter >= patience:
-                    print(f"Early stopping at epoch {epoch}")
-                    break
+            print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
+        else:
+            patience_counter += 1
+            print(f"  no improvement ({patience_counter}/{patience})")
+            if patience_counter >= patience:
+                print(f"Early stopping at epoch {epoch}")
+                break
 
 
     print("Training complete")
@@ -256,8 +256,8 @@ def parse_args():
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
-    parser.add_argument("--eval-interval", type=int, default=1,
-                        help="Evaluation interval in epochs")
+    # parser.add_argument("--eval-interval", type=int, default=1,
+    #                     help="Evaluation interval in epochs")
     parser.add_argument("--enable-matryoshka", action="store_true",
                         help="Enable Matryoshka training with multiple hidden sizes")
     return parser.parse_args()
@@ -363,9 +363,9 @@ if __name__ == "__main__":
     else:
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
     
-    # [8, 16, 32..., hidden_size]
+    # [16, 32..., hidden_size]
     if args.enable_matryoshka:
-        matryoshka_sizes = [8 * 2**i for i in range(int(math.log2(args.hidden_size // 8)) + 1)]
+        matryoshka_sizes = [16 * 2**i for i in range(int(math.log2(args.hidden_size // 16)) + 1)]
         print(f"Matryoshka training enabled with hidden sizes: {matryoshka_sizes}")
     else:
         print("Matryoshka training disabled. Using single hidden size.")
@@ -387,7 +387,7 @@ if __name__ == "__main__":
         use_ema=not args.no_ema,
         patience=args.patience,
         checkpoint_path=args.checkpoint_path,
-        eval_interval=args.eval_interval
+        #eval_interval=args.eval_interval
     )
     
     print("--- Training finished ---")
