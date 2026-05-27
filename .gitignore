@@ -4,3 +4,4 @@ __pycache__/
 weights/weights/
 *.pt
 data/
+checkpoints/
