@@ -9,7 +9,7 @@ from puzzle_datasets.puzzle_dataset import PuzzleDataset, IGNORE_LABEL_ID
 from model.trm import TinyRecursiveModel
 from model.layers import TransformerBlock
 from torch.optim import AdamW
-from torch.optim.lr_scheduler import LambdaLR
+from torch.optim.lr_scheduler import ReduceLROnPlateau
 from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
@@ -52,7 +52,6 @@ def train(
     epochs: int = 2,
     halt_prob_thres: float = 0.5,
     max_recurrent_steps: int = 12,
-    warmup_steps: int = 2000,
     ema_decay: float = 0.999,
     use_ema: bool = True,
     patience: int = 5,
@@ -78,7 +77,14 @@ def train(
             p.requires_grad_(False)
 
     optim = AdamW(model.parameters(), lr=learning_rate, weight_decay=weight_decay)
-    scheduler = LambdaLR(optim, lambda step: min((step + 1) / warmup_steps, 1.0))
+    scheduler = ReduceLROnPlateau(
+        optim,
+        mode="max",
+        factor=0.5,
+        patience=patience // eval_interval,
+        threshold=1e-4,       #  >1% gain
+        min_lr=1e-6
+    )
 
     num_batches = train_dataset.num_groups // train_dataset.batch_size
     global_step = 0
@@ -138,8 +144,6 @@ def train(
                 optim.step()
                 optim.zero_grad(set_to_none=True)
                 
-                scheduler.step()
-
                 if use_ema and ema_model is not None:
                     update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
 
@@ -179,6 +183,9 @@ def train(
                 max_recurrent_steps=max_recurrent_steps,
                 #probabilist_trm=False
             )
+
+            scheduler.step(metrics["exact_match"])
+
             print(
                 f"[epoch {epoch}] "
                 f"val_loss={metrics['val_loss']:.4f} | "
@@ -376,7 +383,6 @@ if __name__ == "__main__":
         epochs=args.epochs,
         halt_prob_thres=0.5,
         max_recurrent_steps=args.max_recurrent_steps,
-        warmup_steps=100,
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
         patience=args.patience,
