@@ -100,7 +100,7 @@ class TinyRecursiveModel(nn.Module):
         inputs: torch.Tensor, 
         N_supervision: int,
         W_slice: int | None = None,
-        register_trajectories: bool = False,
+        collect_trajectories: bool = False,
     ):
         W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size
 
@@ -117,10 +117,9 @@ class TinyRecursiveModel(nn.Module):
         for _ in range(N_supervision):            
             y, z = self.forward(x, y, z)
 
-            if register_trajectories:
+            if collect_trajectories:
                 trajectory["y"].append(y.clone())
                 trajectory["z"].append(z.clone())
-
 
         W_m = self.prediction_head.weight[:, :W_slice]
         Q_m = self.halt_head.weight[:, :W_slice]
