@@ -131,8 +131,9 @@ def train(
 
             for step in range(1, max_recurrent_steps + 1):
                 mask = (labels != IGNORE_LABEL_ID)
+
                 loss_counts = mask.sum(-1)
-                loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
+                # loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
 
                 y, z = model(x, y, z)
 
@@ -148,9 +149,15 @@ def train(
                     is_correct = mask & (logits.argmax(dim=-1) == labels)
                     seq_is_correct = is_correct.sum(-1) == loss_counts
     
-                    lm_loss = (
-                        stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
-                    ).mean()
+                    # lm_loss = (
+                    #     stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask) / loss_divisor
+                    # ).mean()
+                    lm_loss = F.cross_entropy(
+                        logits.reshape(-1, vocab_size),
+                        labels.reshape(-1),
+                        ignore_index=IGNORE_LABEL_ID,
+                        reduction="mean"
+                    )
                     
                     q_halt_loss = F.binary_cross_entropy_with_logits(
                         halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
