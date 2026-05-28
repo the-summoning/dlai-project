@@ -55,7 +55,8 @@ def train(
     ema_decay: float = 0.999,
     use_ema: bool = True,
     patience: int = 5,
-    checkpoint_path: str = "checkpoints/checkpoint.pt",
+    checkpoint_path: Path = Path("checkpoints/checkpoint.pt"),
+    resume_from_checkpoint: Path | None = None,
     #eval_interval: int = 1,
 ):
     assert matryoshka_sizes is not None and len(matryoshka_sizes) > 0
@@ -82,7 +83,7 @@ def train(
         mode="max",
         factor=0.5,
         patience=patience // 2,
-        threshold=1e-4,       #  >1% gain
+        threshold=1e-4,       #  0.0001% gain
         min_lr=1e-6
     )
 
@@ -91,6 +92,24 @@ def train(
     start_epoch = 1
     best_exact_match = -1.0
     patience_counter = 0
+
+    # ── Resume from checkpoint
+    if resume_from_checkpoint is not None and resume_from_checkpoint.exists():
+        print(f"Resuming from {resume_from_checkpoint}")
+        ckpt = torch.load(resume_from_checkpoint, map_location=device)
+        
+        model.load_state_dict(ckpt["model_state_dict"])
+        
+        if use_ema and ema_model is not None:
+            ema_model.load_state_dict(ckpt["ema_model_state_dict"])
+        
+        optim.load_state_dict(ckpt["optimizer_state_dict"])
+        scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+        global_step = ckpt["global_step"]
+        start_epoch = ckpt["epoch"] + 1
+        best_exact_match = ckpt["metrics"]["exact_match"]
+        patience_counter = ckpt["patience_counter"]
+        print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
     
     weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
 
@@ -251,7 +270,9 @@ def parse_args():
     parser.add_argument("--mock", action="store_true",
                         help="Use nn.Identity() as the network for rapid debugging")
     parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
-                        help="Path to save/load the model checkpoint")
+                        help="Path to save the model checkpoint")
+    parser.add_argument("--resume-from-checkpoint", type=str, default="checkpoints/old-best.pt",
+                        help="Load a previous checkpoint")
     parser.add_argument("--hidden-size", type=int, default=512,
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
@@ -386,7 +407,8 @@ if __name__ == "__main__":
         ema_decay=args.ema_decay,
         use_ema=not args.no_ema,
         patience=args.patience,
-        checkpoint_path=args.checkpoint_path,
+        checkpoint_path=Path(args.checkpoint_path),
+        resume_from_checkpoint=Path(args.resume_from_checkpoint) if args.resume_from_checkpoint else None,
         #eval_interval=args.eval_interval
     )
     
