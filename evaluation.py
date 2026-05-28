@@ -19,6 +19,7 @@ def evaluate_model(
     device: torch.device,
     max_recurrent_steps: int,
     W_slice: int | None = None,
+    register_trajectories: bool = True,
     # probabilist_trm: bool = False,
     # probabilistic_rollouts: int = 1,
 ) -> dict:
@@ -42,7 +43,7 @@ def evaluate_model(
         #     _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
         # else:
         #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
-        _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps, W_slice)
+        _, _, logits, _, trajectories = model.predict(dataset_input, max_recurrent_steps, W_slice, register_trajectories)
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -67,7 +68,8 @@ def evaluate_model(
     return {
         "val_loss": total_val_loss / max(total_puzzles, 1),
         "token_acc": correct_tokens / max(total_tokens, 1),
-        "exact_match": exact_puzzles  / max(total_puzzles, 1)
+        "exact_match": exact_puzzles  / max(total_puzzles, 1),
+        "trajectories": trajectories if register_trajectories else None
     }
 
 
@@ -90,6 +92,14 @@ def parse_args():
                         help="Batch size for the PuzzleDataset")
     parser.add_argument("--max-recurrent-steps", type=int, default=12,
                         help="Maximum number of recurrent steps during evaluation")
+    parser.add_argument("--T", type=int, default=3,
+                        help="Number of high level iterations (T) (# times the model can re-process its own output)")
+    parser.add_argument("--n", type=int, default=6,
+                        help="Number of low level iterations (n) (# times the model processes the input before producing an output)")
+    parser.add_argument("--expansion", type=float, default=4.0,
+                        help="Expansion factor for the hidden size in the Transformer layers")
+    parser.add_argument("--num-heads", type=int, default=8,
+                        help="Number of attention heads in the Transformer layers")
     parser.add_argument("--w-slice", type=int, default=None,
                         help="Number of hidden dimensions to use from prediction/halt heads (W_slice).")
     parser.add_argument("--probabilistic-trm", action="store_true",
@@ -129,9 +139,9 @@ if __name__ == '__main__':
     network = nn.Sequential(
         *[
             TransformerBlock(
-                num_heads=8,
+                num_heads=args.num_heads,
                 hidden_size=args.hidden_size,
-                expansion=4.0,
+                expansion=args.expansion,
                 max_seq_len=seq_len + num_registers
             )
             for _ in range(args.num_transformer_blocks)
@@ -142,8 +152,8 @@ if __name__ == '__main__':
         hidden_size=args.hidden_size,
         vocab_size=vocab_size,
         network=network,
-        n=6,
-        T=3,
+        n=args.n,
+        T=args.T,
         num_registers=num_registers,
     )
 

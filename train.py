@@ -269,6 +269,10 @@ def parse_args():
                         help="Number of high level iterations (T) (# times the model can re-process its own output)")
     parser.add_argument("--n", type=int, default=6,
                         help="Number of low level iterations (n) (# times the model processes the input before producing an output)")
+    parser.add_argument("--expansion", type=float, default=4.0,
+                        help="Expansion factor for the hidden size in the Transformer layers")
+    parser.add_argument("--num-heads", type=int, default=8,
+                        help="Number of attention heads in the Transformer layers")
     parser.add_argument("--patience", type=int, default=5,
                         help="Number of epochs with no improvement before early stopping")
     parser.add_argument("--mock", action="store_true",
@@ -341,7 +345,7 @@ if __name__ == "__main__":
         ignore_label_id=metadata["ignore_label_id"]
     )    
 
-    num_registers = 1 # just CLS token, used to halt
+    num_registers = 16 # just CLS token, used to halt
     
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
     print(f"Train dataset: {args.train_inputs_path}")
@@ -359,9 +363,9 @@ if __name__ == "__main__":
         for _ in range(args.num_transformer_blocks):
             blocks.append(
                 TransformerBlock(
-                    num_heads=8,
+                    num_heads=args.num_heads,
                     hidden_size=args.hidden_size,
-                    expansion=4.0,
+                    expansion=args.expansion,
                     max_seq_len=seq_len + num_registers
                 )
             )

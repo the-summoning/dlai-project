@@ -91,14 +91,29 @@ class TinyRecursiveModel(nn.Module):
 
 
     @torch.inference_mode()
-    def predict(self, inputs: torch.Tensor, N_supervision: int, W_slice: int | None = None):
-        W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size\
+    def predict(
+        self,
+        inputs: torch.Tensor, 
+        N_supervision: int,
+        W_slice: int | None = None,
+        register_trajectories: bool = False,
+    ):
+        W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size
 
         x = self.embedding(inputs)
         y, z = self.get_initial_for_inputs(x)
 
+        trajectory = {
+            "y": [y.clone()] if register_trajectories else [],
+            "z": [z.clone()] if register_trajectories else [],
+        }
+    
         for _ in range(N_supervision):            
             y, z = self.forward(x, y, z)
+
+            if register_trajectories:
+                trajectory["y"].append(y.clone())
+                trajectory["z"].append(z.clone())
 
         W_m = self.prediction_head.weight[:, :W_slice]
         Q_m = self.halt_head.weight[:, :W_slice]
@@ -106,7 +121,7 @@ class TinyRecursiveModel(nn.Module):
         logits = F.linear(y[:, self.num_registers:, :W_slice], W_m)
         halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
 
-        return y, z, logits, halt_logits
+        return y, z, logits, halt_logits, trajectory
     
 
     # @torch.inference_mode()
