@@ -3,6 +3,27 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
+#   def compute_noise(self, z, halt_logits):
+
+#          self.noise_head = nn.Sequential(
+#             nn.Linear(hidden_size, hidden_size * 2),
+#             nn.GELU(),
+#             nn.Linear(hidden_size * 2, hidden_size)
+#         )
+#         q = halt_logits.sigmoid() 
+#         beta = 1.0 - q
+#         sigma = F.softplus(self.noise_head(z))
+#         eps = torch.randn_like(z)
+
+#         return beta.unsqueeze(-1) * sigma * eps
+
+
+# IMPARARE ZONA GAUSSIANA CORRETTA condizionata da input
+# z ~ p(z|x) = N(mu(x), sigma(x)) + regularization to keep reasons of same input nearby in latent space
+# then during inference I can control the spreadness and originality of the reason by moving a bit in the latent space and adding noise
+
+
+
 class TinyRecursiveModel(nn.Module):
     def __init__(
         self,
@@ -15,24 +36,12 @@ class TinyRecursiveModel(nn.Module):
     ):
         super().__init__()
 
-        # self.y_init = nn.Buffer(
-        #     nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
-        #     persistent=True
-        # )
-        # self.z_init = nn.Buffer(
-        #     nn.init.trunc_normal_(torch.empty(hidden_size), std=1.0),
-        #     persistent=True
-        # )
-
-        # learnable inits seem to work better
-        self.y_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
-        self.z_init = nn.Parameter(nn.init.trunc_normal_(torch.empty(hidden_size), std=1e-2))
-
         self.n = n
         self.T = T
         
         self.num_registers = max(num_registers, 1) # at least one like [CLS], used to halt
         self.register_tokens = nn.Parameter(torch.randn(self.num_registers, hidden_size) * 1e-2)
+        self.hidden_size = hidden_size
 
         self.network = network
         self.embed_tokens = nn.Embedding(vocab_size, hidden_size)
@@ -55,13 +64,6 @@ class TinyRecursiveModel(nn.Module):
             if module.bias is not None:
                 nn.init.zeros_(module.bias)    
 
-    def get_initial_for_inputs(self, inputs):
-        batch_size, seq_len, _ = inputs.shape
-
-        y_init = self.y_init.expand(batch_size, seq_len, -1)  # (b n d)
-        z_init = self.z_init.expand(batch_size, seq_len, -1)  # (b n d)
-
-        return y_init, z_init
 
     def latent_recursion(self, x, y, z):
         for _ in range(self.n):
@@ -79,6 +81,8 @@ class TinyRecursiveModel(nn.Module):
 
     # deep supervision
     def forward(self, x, y, z):
+        # sample K times and learn to move the samples to similar latents with the same output (MRL)
+
         # # recursing T−1 times to improve outputs and latents (no gradients needed)
         with torch.no_grad():
             for _ in range(self.T - 1): # high level
@@ -101,7 +105,8 @@ class TinyRecursiveModel(nn.Module):
         W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size
 
         x = self.embedding(inputs)
-        y, z = self.get_initial_for_inputs(x)
+        y = torch.zeros(x.shape[0], self.num_registers + x.shape[1], self.hidden_size, device=x.device)
+        z = torch.zeros(x.shape[0], self.num_registers + x.shape[1], self.hidden_size, device=x.device)
 
         trajectory = {
             "y": [y.clone()] if register_trajectories else [],

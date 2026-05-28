@@ -83,7 +83,7 @@ def train(
         mode="max",
         factor=0.5,
         patience=patience // 2,
-        threshold=1e-4,       #  0.0001% gain
+        threshold=1e-4,
         min_lr=1e-6
     )
 
@@ -105,10 +105,13 @@ def train(
         
         optim.load_state_dict(ckpt["optimizer_state_dict"])
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
+        
         global_step = ckpt["global_step"]
         start_epoch = ckpt["epoch"] + 1
+        
         best_exact_match = ckpt["metrics"]["exact_match"]
         patience_counter = ckpt["patience_counter"]
+        
         print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
     
     weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
@@ -120,8 +123,9 @@ def train(
             dataset_input = batch["inputs"].to(device)
             labels = batch["labels"].to(device)
 
-            inputs = model.embedding(dataset_input)
-            y, z = model.get_initial_for_inputs(inputs)
+            x = model.embedding(dataset_input)
+            y = torch.zeros(x.shape[0], model.num_registers + x.shape[1], model.hidden_size, device=x.device)
+            z = torch.zeros(x.shape[0], model.num_registers + x.shape[1], model.hidden_size, device=x.device)
 
             total_halted = 0
 
@@ -130,7 +134,7 @@ def train(
                 loss_counts = mask.sum(-1)
                 loss_divisor = loss_counts.clamp_min(1).unsqueeze(-1)
 
-                y, z = model(inputs, y, z)
+                y, z = model(x, y, z)
 
                 total_loss = torch.zeros((), device=device)
 
@@ -166,7 +170,7 @@ def train(
                 if use_ema and ema_model is not None:
                     update_ema_model(ema_model=ema_model, model=model, decay=ema_decay)
 
-                inputs = inputs.detach()
+                x = x.detach()
                 # y = y.detach()
                 # z = z.detach()
                 global_step += 1
@@ -185,7 +189,7 @@ def train(
                 if not halt_mask.any():
                     continue
                 
-                inputs = inputs[~halt_mask]
+                x = x[~halt_mask]
                 y = y[~halt_mask]
                 z = z[~halt_mask]
                 labels = labels[~halt_mask]
