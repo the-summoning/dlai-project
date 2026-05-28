@@ -167,7 +167,6 @@ def train(
                 y = y.detach()
                 z = z.detach()
 
-                total_loss /= max_recurrent_steps
                 total_loss.backward()
                 
                 grad_norm = clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -186,18 +185,13 @@ def train(
                 halt_mask = halt_logits.sigmoid() >= halt_prob_thres
                 total_halted += halt_mask.sum().item()
 
-                y_norm = y.norm(dim=-1).mean().item()
-                z_norm = z.norm(dim=-1).mean().item()
-
                 pbar.set_postfix(
                     loss=f"{total_loss.item():.3f}",
                     step=f"{step}/{max_recurrent_steps}",
                     active=f"{y.shape[0]}/{batch_size}",
                     ema=f"{ema_decay:.4f}",
                     halted=f"{total_halted}",
-                    grad=f"{grad_norm:.2f}",
-                    y_norm=f"{y_norm:.2f}",
-                    z_norm=f"{z_norm:.2f}",
+                    grad=f"{grad_norm:.2f}"
                 )
 
                 if not halt_mask.any():
