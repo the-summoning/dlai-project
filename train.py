@@ -265,6 +265,10 @@ def parse_args():
                         help="Disable EMA updates and validate/train the base model normally")
     parser.add_argument("--max-recurrent-steps", type=int, default=16,
                         help="Maximum number of recurrent steps during training and validation")
+    parser.add_argument("--T", type=int, default=3,
+                        help="Number of high level iterations (T) (# times the model can re-process its own output)")
+    parser.add_argument("--n", type=int, default=6,
+                        help="Number of low level iterations (n) (# times the model processes the input before producing an output)")
     parser.add_argument("--patience", type=int, default=5,
                         help="Number of epochs with no improvement before early stopping")
     parser.add_argument("--mock", action="store_true",
@@ -367,8 +371,8 @@ if __name__ == "__main__":
         hidden_size=args.hidden_size,
         vocab_size=vocab_size,
         network=network,
-        n=6, # 6
-        T=3, # 3
+        n=args.n, # 6
+        T=args.T, # 3
         num_registers=num_registers,
     )
     
