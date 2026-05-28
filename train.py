@@ -124,8 +124,8 @@ def train(
             labels = batch["labels"].to(device)
 
             x = model.embedding(dataset_input)
-            y = torch.zeros(x.shape[0], model.num_registers + x.shape[1], model.hidden_size, device=x.device)
-            z = torch.zeros(x.shape[0], model.num_registers + x.shape[1], model.hidden_size, device=x.device)
+            y = torch.zeros(x.shape[0], x.shape[1], model.hidden_size, device=x.device)
+            z = torch.zeros(x.shape[0], x.shape[1], model.hidden_size, device=x.device)
 
             total_halted = 0
 

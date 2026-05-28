@@ -105,12 +105,13 @@ class TinyRecursiveModel(nn.Module):
         W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size
 
         x = self.embedding(inputs)
-        y = torch.zeros(x.shape[0], self.num_registers + x.shape[1], self.hidden_size, device=x.device)
-        z = torch.zeros(x.shape[0], self.num_registers + x.shape[1], self.hidden_size, device=x.device)
+        y = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
+        z = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
 
+        # zeros are implicit
         trajectory = {
-            "y": [y.clone()] if register_trajectories else [],
-            "z": [z.clone()] if register_trajectories else [],
+            "y": [],
+            "z": []
         }
     
         for _ in range(N_supervision):            
@@ -119,6 +120,7 @@ class TinyRecursiveModel(nn.Module):
             if register_trajectories:
                 trajectory["y"].append(y.clone())
                 trajectory["z"].append(z.clone())
+
 
         W_m = self.prediction_head.weight[:, :W_slice]
         Q_m = self.halt_head.weight[:, :W_slice]
