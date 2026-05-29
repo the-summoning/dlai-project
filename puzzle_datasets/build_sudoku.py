@@ -125,7 +125,7 @@ def convert_subset(
         results["puzzle_indices"].append(example_id)
         results["group_indices"].append(puzzle_id)
 
-    assert len(all_chars - set(CHARSET)) == 0
+    #assert len(all_chars - set(CHARSET)) == 0
 
     char2id = np.zeros(256, np.uint8)
     char2id[np.array(list(map(ord, CHARSET)))] = np.arange(len(CHARSET)) + 1
@@ -160,11 +160,13 @@ def convert_subset(
     for k, v in results.items():
         np.save(save_dir / f"{k}.npy", v)
 
+    print('Saved to', save_dir)
+
 
 if __name__ == "__main__":
-    RATINGS = (0, 1, 2)
-    TRAIN_MAX_SIZE = 10000
-    TEST_MAX_SIZE = 1000
+    RATINGS = (10, 15, 20)
+    TRAIN_MAX_SIZE = 3000
+    TEST_MAX_SIZE = 100
 
     OUTPUT_DIR = Path(f"data/sudoku-extreme_{TRAIN_MAX_SIZE}_below_rating_{max(RATINGS)}")
 

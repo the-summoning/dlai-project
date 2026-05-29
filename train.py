@@ -14,7 +14,7 @@ from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
-from model.stablemax_ce_loss import stablemax_cross_entropy
+#from model.stablemax_ce_loss import stablemax_cross_entropy
 from evaluation import evaluate_model
 
 
@@ -299,8 +299,8 @@ def parse_args():
                         help="Number of TransformerBlock layers in the network")
     # parser.add_argument("--eval-interval", type=int, default=1,
     #                     help="Evaluation interval in epochs")
-    parser.add_argument("--enable-matryoshka", action="store_true",
-                        help="Enable Matryoshka training with multiple hidden sizes")
+    parser.add_argument("--enable-matryoshka-from", type=int, default=8,
+                        help="Enable Matryoshka starting from this size (inclusive) and then double to reach hidden size")
     return parser.parse_args()
 
 
@@ -405,8 +405,8 @@ if __name__ == "__main__":
         print(f"EMA decay: {args.ema_decay}. Validating and checkpointing the EMA model.")
     
     # [16, 32..., hidden_size]
-    if args.enable_matryoshka:
-        matryoshka_sizes = [8 * 2**i for i in range(int(math.log2(args.hidden_size // 8)) + 1)]
+    if args.enable_matryoshka_from is not None:
+        matryoshka_sizes = [args.enable_matryoshka_from * 2**i for i in range(int(math.log2(args.enable_matryoshka_from)) + 1)]
         print(f"Matryoshka training enabled with hidden sizes: {matryoshka_sizes}")
     else:
         print("Matryoshka training disabled. Using single hidden size.")
