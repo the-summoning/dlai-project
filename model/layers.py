@@ -108,30 +108,44 @@ class TransformerBlock(nn.Module):
         num_heads: int,
         hidden_size: int,
         expansion: float,
-        max_seq_len: int,
+        seq_len: int,
+        num_registers: int = 1,
         norm_eps: float = 1e-5,
         rope_theta: float = 10000.0,
+        use_mlp_t: bool = True,
     ):
         super().__init__()
-        self.self_attn = Attention(
-            hidden_size=hidden_size,
-            num_heads=num_heads,
-            num_key_value_heads=num_heads,
-            causal=False
-        )
-        self.rotary_emb = RotaryEmbedding(
-            dim=hidden_size // num_heads,
-            max_position_embeddings=max_seq_len,
-            base=rope_theta
-        )
+        self.use_mlp_t = use_mlp_t
+
+        if use_mlp_t:
+            self.mlp_t = SwiGLU(seq_len + num_registers, expansion) # type: ignore
+        else:
+            self.rotary_emb = RotaryEmbedding(
+                dim=hidden_size // num_heads,
+                max_position_embeddings=seq_len + num_registers,
+                base=rope_theta
+            )
+            self.self_attn = Attention(
+                hidden_size=hidden_size,
+                num_heads=num_heads,
+                num_key_value_heads=num_heads,
+                causal=False
+            )
+
         self.mlp = SwiGLU(hidden_size, expansion)
         self.norm_eps = norm_eps
 
-    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:
-        cos_sin = self.rotary_emb()
+    def forward(self, hidden_states: torch.Tensor) -> torch.Tensor:        
+        if self.use_mlp_t:
+            hidden_states = hidden_states.transpose(1,2)
+            mlp_out = self.mlp_t(hidden_states)
+            hidden_states = rms_norm(hidden_states + mlp_out, variance_epsilon=self.norm_eps)
+            hidden_states = hidden_states.transpose(1,2)
+        else:
+            cos_sin = self.rotary_emb()
+            attn_out = self.self_attn(hidden_states=hidden_states, cos_sin=cos_sin)
+            hidden_states = rms_norm(hidden_states + attn_out, variance_epsilon=self.norm_eps)
         
-        attn_out = self.self_attn(hidden_states=hidden_states, cos_sin=cos_sin)
-        hidden_states = rms_norm(hidden_states + attn_out, variance_epsilon=self.norm_eps)
         mlp_out = self.mlp(hidden_states)
         
         return rms_norm(hidden_states + mlp_out, variance_epsilon=self.norm_eps)

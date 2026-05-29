@@ -14,7 +14,6 @@ from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
-#from model.stablemax_ce_loss import stablemax_cross_entropy
 from evaluation import evaluate_model
 
 
@@ -301,6 +300,9 @@ def parse_args():
     #                     help="Evaluation interval in epochs")
     parser.add_argument("--enable-matryoshka-from", type=int, default=8,
                         help="Enable Matryoshka starting from this size (inclusive) and then double to reach hidden size")
+    parser.add_argument("--mlp-t", action="store_true",
+                        help="Use MLP for temporal mixing instead of self-attention")
+    
     return parser.parse_args()
 
 
@@ -378,7 +380,9 @@ if __name__ == "__main__":
                     num_heads=args.num_heads,
                     hidden_size=args.hidden_size,
                     expansion=args.expansion,
-                    max_seq_len=seq_len + num_registers
+                    seq_len=seq_len,
+                    num_registers=num_registers,
+                    use_mlp_t=args.mlp_t
                 )
             )
         network = nn.Sequential(*blocks)
