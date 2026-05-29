@@ -156,11 +156,11 @@ def train(
                         logits.reshape(-1, vocab_size),
                         labels.reshape(-1),
                         ignore_index=IGNORE_LABEL_ID,
-                        reduction="sum"
+                        reduction="mean"
                     )
                     
                     q_halt_loss = F.binary_cross_entropy_with_logits(
-                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="sum"
+                        halt_logits, seq_is_correct.to(halt_logits.dtype), reduction="mean"
                     )
                     total_loss += w * (lm_loss + 0.5 * q_halt_loss)
 
