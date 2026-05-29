@@ -406,7 +406,9 @@ if __name__ == "__main__":
     
     # [16, 32..., hidden_size]
     if args.enable_matryoshka_from is not None:
-        matryoshka_sizes = [args.enable_matryoshka_from * 2**i for i in range(int(math.log2(args.enable_matryoshka_from)) + 1)]
+        matryoshka_sizes = [
+            args.enable_matryoshka_from * 2**i for i in range(int(math.log2(args.hidden_size // args.enable_matryoshka_from)) + 1)
+        ]
         print(f"Matryoshka training enabled with hidden sizes: {matryoshka_sizes}")
     else:
         print("Matryoshka training disabled. Using single hidden size.")
