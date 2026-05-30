@@ -56,7 +56,7 @@ def train(
     patience: int = 5,
     checkpoint_path: Path = Path("checkpoints/checkpoint.pt"),
     resume_from_checkpoint: Path | None = None,
-    #eval_interval: int = 1,
+    eval_interval: int = 1,
 ):
     assert matryoshka_sizes is not None and len(matryoshka_sizes) > 0
 
@@ -204,48 +204,48 @@ def train(
                 if y.numel() == 0:
                     break
 
-        # if epoch % eval_interval == 0:
-        # ── Validation
-        metrics = evaluate_model(
-            model=model if not use_ema else ema_model, # type: ignore
-            val_dataset=val_dataset,
-            device=device,
-            max_recurrent_steps=max_recurrent_steps,
-            #probabilist_trm=False
-        )
+        if epoch % eval_interval == 0:
+            # ── Validation
+            metrics = evaluate_model(
+                model=model if not use_ema else ema_model, # type: ignore
+                val_dataset=val_dataset,
+                device=device,
+                max_recurrent_steps=max_recurrent_steps,
+                #probabilist_trm=False
+            )
 
-        scheduler.step(metrics["exact_match"])
+            scheduler.step(metrics["exact_match"])
 
-        print(
-            f"[epoch {epoch}] "
-            f"val_loss={metrics['val_loss']:.4f} | "
-            f"token_acc={metrics['token_acc']:.4f} | "
-            f"exact_match={metrics['exact_match']:.4f}"
-        )
+            print(
+                f"[epoch {epoch}] "
+                f"val_loss={metrics['val_loss']:.4f} | "
+                f"token_acc={metrics['token_acc']:.4f} | "
+                f"exact_match={metrics['exact_match']:.4f}"
+            )
 
-        # ── Checkpoint + Early stopping
-        if metrics["exact_match"] > best_exact_match:
-            best_exact_match = metrics["exact_match"]
-            patience_counter = 0
+            # ── Checkpoint + Early stopping
+            if metrics["exact_match"] > best_exact_match:
+                best_exact_match = metrics["exact_match"]
+                patience_counter = 0
 
-            torch.save({
-                "epoch": epoch,
-                "global_step": global_step,
-                "model_state_dict": model.state_dict(),
-                "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
-                "optimizer_state_dict": optim.state_dict(),
-                "scheduler_state_dict": scheduler.state_dict(),
-                "metrics": metrics,
-                "patience_counter": patience_counter,
-            }, checkpoint_file)
+                torch.save({
+                    "epoch": epoch,
+                    "global_step": global_step,
+                    "model_state_dict": model.state_dict(),
+                    "ema_model_state_dict": (ema_model.state_dict() if use_ema else model.state_dict()), # type: ignore
+                    "optimizer_state_dict": optim.state_dict(),
+                    "scheduler_state_dict": scheduler.state_dict(),
+                    "metrics": metrics,
+                    "patience_counter": patience_counter,
+                }, checkpoint_file)
 
-            print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
-        else:
-            patience_counter += 1
-            print(f"  no improvement ({patience_counter}/{patience})")
-            if patience_counter >= patience:
-                print(f"Early stopping at epoch {epoch}")
-                break
+                print(f"  ✓ new best exact_match={best_exact_match:.4f}, checkpoint saved")
+            else:
+                patience_counter += 1
+                print(f"  no improvement ({patience_counter}/{patience})")
+                if patience_counter >= patience:
+                    print(f"Early stopping at epoch {epoch}")
+                    break
 
 
     print("Training complete")
@@ -258,10 +258,10 @@ def parse_args():
                         help="Path to training inputs .npy file")
     parser.add_argument("--train-labels-path", type=str, default="data/maze-30x30-hard-1k/train/labels.npy",
                         help="Path to training labels .npy file")
-    parser.add_argument("--test-inputs-path", type=str, default="data/maze-30x30-hard-1k/test/inputs.npy",
-                        help="Path to test inputs .npy file")
-    parser.add_argument("--test-labels-path", type=str, default="data/maze-30x30-hard-1k/test/labels.npy",
-                        help="Path to test labels .npy file")
+    parser.add_argument("--val-inputs-path", type=str, default="data/maze-30x30-hard-1k/test/inputs.npy",
+                        help="Path to val inputs .npy file")
+    parser.add_argument("--val-labels-path", type=str, default="data/maze-30x30-hard-1k/test/labels.npy",
+                        help="Path to val labels .npy file")
     parser.add_argument("--batch-size", type=int, default=32,
                         help="Batch size for the PuzzleDataset")
     parser.add_argument("--epochs", type=int, default=100,
@@ -296,8 +296,8 @@ def parse_args():
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
-    # parser.add_argument("--eval-interval", type=int, default=1,
-    #                     help="Evaluation interval in epochs")
+    parser.add_argument("--eval-interval", type=int, default=1,
+                        help="Evaluation interval in epochs")
     parser.add_argument("--enable-matryoshka-from", type=int, default=8,
                         help="Enable Matryoshka starting from this size (inclusive) and then double to reach hidden size")
     parser.add_argument("--mlp-t", action="store_true",
@@ -351,8 +351,8 @@ if __name__ == "__main__":
         ignore_label_id=metadata["ignore_label_id"]
     )
     val_dataset = PuzzleDataset(
-        inputs_path=args.test_inputs_path,
-        labels_path=args.test_labels_path,
+        inputs_path=args.val_inputs_path,
+        labels_path=args.val_labels_path,
         group_indices_path=str(test_group_indices_path),
         batch_size=args.batch_size,
         seed=42,
@@ -363,7 +363,7 @@ if __name__ == "__main__":
     
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
     print(f"Train dataset: {args.train_inputs_path}")
-    print(f"Test dataset: {args.test_inputs_path}")
+    print(f"Val dataset: {args.val_inputs_path}")
     print(f"EMA enabled: {not args.no_ema}")
 
     # Initialize model

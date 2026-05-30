@@ -165,7 +165,7 @@ def convert_subset(
 
 if __name__ == "__main__":
     RATINGS = (10, 15, 20)
-    TRAIN_MAX_SIZE = 3000
+    TRAIN_MAX_SIZE = 5000
     TEST_MAX_SIZE = 100
 
     OUTPUT_DIR = Path(f"data/sudoku-extreme_{TRAIN_MAX_SIZE}_below_rating_{max(RATINGS)}")
