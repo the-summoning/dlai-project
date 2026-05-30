@@ -298,7 +298,7 @@ def parse_args():
                         help="Number of TransformerBlock layers in the network")
     parser.add_argument("--eval-interval", type=int, default=1,
                         help="Evaluation interval in epochs")
-    parser.add_argument("--enable-matryoshka-from", type=int, default=8,
+    parser.add_argument("--enable-matryoshka-from", type=int, default=None,
                         help="Enable Matryoshka starting from this size (inclusive) and then double to reach hidden size")
     parser.add_argument("--mlp-t", action="store_true",
                         help="Use MLP for temporal mixing instead of self-attention")
