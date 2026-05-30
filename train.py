@@ -106,13 +106,14 @@ def train(
         scheduler.load_state_dict(ckpt["scheduler_state_dict"])
         
         global_step = ckpt["global_step"]
-        start_epoch = ckpt["epoch"] + 1
+        #start_epoch = ckpt["epoch"] + 1
         
-        best_exact_match = ckpt["metrics"]["exact_match"]
-        patience_counter = ckpt["patience_counter"]
+        # best_exact_match = ckpt["metrics"]["exact_match"]
+        # patience_counter = ckpt["patience_counter"]
         
-        print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
-    
+        #print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={best_exact_match:.4f}, patience={patience_counter}/{patience}")
+        print(f"  resumed from epoch {ckpt['epoch']}, best_exact_match={ckpt["metrics"]["exact_match"]:.4f}")
+
     weights = [1 / (len(matryoshka_sizes) - i) for i in range(len(matryoshka_sizes))]
 
     for epoch in range(start_epoch, epochs + 1):
