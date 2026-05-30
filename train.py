@@ -332,7 +332,7 @@ if __name__ == "__main__":
     # Derive metadata path from training inputs path using pathlib
     data_dir = Path(args.train_inputs_path).parent
     group_indices_path = data_dir / "group_indices.npy"
-    test_group_indices_path = Path(args.test_inputs_path).parent / "group_indices.npy"
+    val_group_indices_path = Path(args.val_inputs_path).parent / "group_indices.npy"
 
     with open(data_dir / "metadata.json", "r") as f:
         metadata = json.load(f)
@@ -353,7 +353,7 @@ if __name__ == "__main__":
     val_dataset = PuzzleDataset(
         inputs_path=args.val_inputs_path,
         labels_path=args.val_labels_path,
-        group_indices_path=str(test_group_indices_path),
+        group_indices_path=str(val_group_indices_path),
         batch_size=args.batch_size,
         seed=42,
         ignore_label_id=metadata["ignore_label_id"]
