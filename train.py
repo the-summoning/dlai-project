@@ -435,7 +435,7 @@ if __name__ == "__main__":
         patience=args.patience,
         checkpoint_path=Path(args.checkpoint_path),
         resume_from_checkpoint=Path(args.resume_from_checkpoint) if args.resume_from_checkpoint else None,
-        #eval_interval=args.eval_interval
+        eval_interval=args.eval_interval
     )
     
     print("--- Training finished ---")
