@@ -47,7 +47,6 @@ def evaluate_model(
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
-        # ── Loss ──────────────────────────────────────────────────────────
         mask = labels != IGNORE_LABEL_ID
         loss_counts = mask.sum(-1).clamp_min(1)
         lm_loss = (
@@ -56,11 +55,9 @@ def evaluate_model(
         ).sum()
         total_val_loss += lm_loss.item()
 
-        # ── Token Accuracy ─────────────────────────────────────────────────
         correct_tokens += (mask & (final_preds == labels)).sum().item()
         total_tokens   += mask.sum().item()
 
-        # ── Exact Match ────────────────────────────────────────────────────
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
 
