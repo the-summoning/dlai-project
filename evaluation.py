@@ -1,3 +1,4 @@
+import numpy as np
 import argparse
 import torch
 import torch.nn as nn
@@ -32,6 +33,9 @@ def evaluate_model(
     exact_puzzles = 0
     total_val_loss = 0.0
 
+    z_trajectories = []
+    y_trajectories = []
+
     pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
     
     for batch in pbar:
@@ -44,6 +48,10 @@ def evaluate_model(
         # else:
         #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
         _, _, logits, _, trajectories = model.predict(dataset_input, max_recurrent_steps, W_slice, register_trajectories)
+
+        if register_trajectories:
+            z_trajectories.append(trajectories['z'])
+            y_trajectories.append(trajectories['y'])
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -61,12 +69,14 @@ def evaluate_model(
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
 
-
     return {
         "val_loss": total_val_loss / max(total_puzzles, 1),
         "token_acc": correct_tokens / max(total_tokens, 1),
         "exact_match": exact_puzzles  / max(total_puzzles, 1),
-        "trajectories": trajectories if register_trajectories else None
+        "trajectories": {
+            'z': np.concatenate(z_trajectories, axis=0),
+            'y': np.concatenate(y_trajectories, axis=0)
+        } if register_trajectories else None,
     }
 
 
@@ -161,7 +171,7 @@ if __name__ == '__main__':
     model.load_state_dict(checkpoint["ema_model_state_dict"])
     model.to(device)
 
-    metrics = evaluate_model(
+    results = evaluate_model(
         model,
         val_dataset,
         device,
@@ -171,14 +181,14 @@ if __name__ == '__main__':
     )
 
     print("Evaluation results:")
-    print(f"  val_loss={metrics['val_loss']:.4f}")
-    print(f"  token_acc={metrics['token_acc']:.4f}")
-    print(f"  exact_match={metrics['exact_match']:.4f}")
+    print(f"  val_loss={results['val_loss']:.4f}")
+    print(f"  token_acc={results['token_acc']:.4f}")
+    print(f"  exact_match={results['exact_match']:.4f}")
 
     trajectories_path = Path(args.trajectories_path)
     trajectories_path.parent.mkdir(parents=True, exist_ok=True)
 
-    torch.save(metrics['trajectories'], trajectories_path)
+    np.savez(trajectories_path, **results['trajectories'])
 
     print('Trajectories saved at ', trajectories_path)
 

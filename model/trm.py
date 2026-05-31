@@ -1,3 +1,4 @@
+import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
@@ -118,14 +119,18 @@ class TinyRecursiveModel(nn.Module):
             y, z = self.forward(x, y, z)
 
             if collect_trajectories:
-                trajectory["y"].append(y.clone())
-                trajectory["z"].append(z.clone())
+                trajectory["y"].append(y.cpu().numpy())
+                trajectory["z"].append(z.cpu().numpy())
 
         W_m = self.prediction_head.weight[:, :W_slice]
         Q_m = self.halt_head.weight[:, :W_slice]
 
         logits = F.linear(y[:, self.num_registers:, :W_slice], W_m)
         halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
+
+        if collect_trajectories:
+            trajectory["y"] = np.stack(trajectory["y"], axis=1)  # type: ignore # (B,T,S,D)
+            trajectory["z"] = np.stack(trajectory["z"], axis=1)  # type: ignore # (B,T,S,D)
 
         return y, z, logits, halt_logits, trajectory
     
