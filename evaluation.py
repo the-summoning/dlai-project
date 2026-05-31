@@ -124,7 +124,7 @@ if __name__ == '__main__':
 
     vocab_size = metadata["vocab_size"]
     seq_len = metadata["seq_len"]
-    num_registers = 1
+    num_registers = 16
 
     val_dataset = PuzzleDataset(
         inputs_path=args.inputs_path,
