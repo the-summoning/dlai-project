@@ -88,6 +88,8 @@ def parse_args():
                         help="Path to metadata.json file (defaults to inputs parent directory)")
     parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
                         help="Path to the checkpoint file to load")
+    parser.add_argument("--trajectories-path", type=str, default="trajectories.pt",
+                        help="Path where to save trajectories")
     parser.add_argument("--batch-size", type=int, default=16,
                         help="Batch size for the PuzzleDataset")
     parser.add_argument("--max-recurrent-steps", type=int, default=12,
@@ -142,7 +144,8 @@ if __name__ == '__main__':
                 num_heads=args.num_heads,
                 hidden_size=args.hidden_size,
                 expansion=args.expansion,
-                max_seq_len=seq_len + num_registers
+                seq_len=seq_len,
+                num_registers=num_registers
             )
             for _ in range(args.num_transformer_blocks)
         ]
@@ -167,10 +170,18 @@ if __name__ == '__main__':
         device,
         max_recurrent_steps=args.max_recurrent_steps,
         W_slice=args.w_slice,
+        register_trajectories=True
     )
 
     print("Evaluation results:")
     print(f"  val_loss={metrics['val_loss']:.4f}")
     print(f"  token_acc={metrics['token_acc']:.4f}")
     print(f"  exact_match={metrics['exact_match']:.4f}")
+
+    trajectories_path = Path(args.trajectories_path)
+    trajectories_path.parent.mkdir(parents=True, exist_ok=True)
+
+    torch.save(metrics['trajectories'], trajectories_path)
+
+    print('Trajectories saved at ', trajectories_path)
 
