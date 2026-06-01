@@ -213,9 +213,8 @@ if __name__ == '__main__':
 
         np.savez(results_path / f'trajectories-{W_slice}.npz', results['trajectories'])
 
-
-    with open(results_path / 'results.json', 'w') as f:
-        json.dump(output, f)
+        with open(results_path / f'results-{W_slice}.json', 'w') as f:
+            json.dump(output, f)
 
     #np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
 
