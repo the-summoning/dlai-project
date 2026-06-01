@@ -200,7 +200,7 @@ if __name__ == '__main__':
             device,
             max_recurrent_steps=args.max_recurrent_steps,
             W_slice=W_slice,
-            register_trajectories=True
+            register_trajectories=False
         )
 
         output.append({
@@ -211,10 +211,10 @@ if __name__ == '__main__':
         })
 
 
-        np.savez(results_path / f'trajectories-{W_slice}.npz', results['trajectories'])
+        #np.savez(results_path / f'trajectories-{W_slice}.npz', results['trajectories'])
 
-        with open(results_path / f'results-{W_slice}.json', 'w') as f:
-            json.dump(output, f)
+    with open(results_path / f'results.json', 'w') as f:
+        json.dump(output, f)
 
     #np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
 
