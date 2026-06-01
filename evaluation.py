@@ -204,7 +204,7 @@ if __name__ == '__main__':
             "exact_match": f"{results['exact_match']:.4f}"
         })
 
-        trajectories_per_W_slice[W_slice] = results['trajectories']
+        trajectories_per_W_slice[str(W_slice)] = results['trajectories']
 
     results_path = Path(args.results_path)
     results_path.mkdir(parents=True, exist_ok=True)
