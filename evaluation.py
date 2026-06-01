@@ -185,9 +185,11 @@ if __name__ == '__main__':
         print("Matryoshka evaluation disabled. Using single hidden size.")
         matryoshka_sizes = [args.hidden_size]
 
+
+    results_path = Path(args.results_path)
+    results_path.mkdir(parents=True, exist_ok=True)
     
     output = []
-    trajectories_per_W_slice = {}
     
     for W_slice in matryoshka_sizes:
         print('Evaluating with W_slice =', W_slice)
@@ -208,15 +210,14 @@ if __name__ == '__main__':
             "exact_match": f"{results['exact_match']:.4f}"
         })
 
-        trajectories_per_W_slice[str(W_slice)] = results['trajectories']
 
-    results_path = Path(args.results_path)
-    results_path.mkdir(parents=True, exist_ok=True)
+        np.savez(results_path / f'trajectories-{W_slice}.npz', results['trajectories'])
+
 
     with open(results_path / 'results.json', 'w') as f:
         json.dump(output, f)
 
-    np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
+    #np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
 
     print('Results saved at ', results_path)
 
