@@ -43,9 +43,9 @@ def evaluate_model(
     for start in range(0, len(data_inputs), batch_size):
         end = start + batch_size
 
-        dataset_input = torch.tensor(data_inputs[start:end], dtype=torch.long)
+        dataset_input = torch.tensor(data_inputs[start:end], dtype=torch.long).to(device)
         labels = torch.tensor(data_labels[start:end], dtype=torch.long)
-        labels = labels.masked_fill(labels == ignore_label_id, IGNORE_LABEL_ID)
+        labels = labels.masked_fill(labels == ignore_label_id, IGNORE_LABEL_ID).to(device)
         
         # if probabilist_trm:
         #     pass
