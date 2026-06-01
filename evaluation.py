@@ -10,23 +10,23 @@ from model.stablemax_ce_loss import stablemax_cross_entropy
 from model.layers import TransformerBlock
 from pathlib import Path
 
-from puzzle_datasets.puzzle_dataset import PuzzleDataset, IGNORE_LABEL_ID
-from tqdm.auto import tqdm
+from puzzle_datasets.puzzle_dataset import IGNORE_LABEL_ID
 
 
 @torch.inference_mode()
 def evaluate_model(
     model: TinyRecursiveModel,
-    val_dataset: PuzzleDataset,
-    device: torch.device,
+    inputs_path: Path,
+    labels_path: Path,
+    batch_size: int,
+    ignore_label_id: int,
     max_recurrent_steps: int,
     W_slice: int | None = None,
-    register_trajectories: bool = True,
+    register_trajectories: bool = False,
     # probabilist_trm: bool = False,
     # probabilistic_rollouts: int = 1,
 ) -> dict:
     model.eval()
-    num_batches = val_dataset.num_groups // val_dataset.batch_size
 
     total_tokens = 0
     correct_tokens = 0
@@ -37,17 +37,22 @@ def evaluate_model(
     z_trajectories = []
     y_trajectories = []
 
-    pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
-    
-    for batch in pbar:
-        dataset_input = batch["inputs"].to(device)
-        labels = batch["labels"].to(device)
+    data_inputs = np.load(inputs_path, mmap_mode="r")
+    data_labels = np.load(labels_path, mmap_mode="r")
+
+    for start in range(0, len(data_inputs), batch_size):
+        end = start + batch_size
+
+        dataset_input = torch.tensor(data_inputs[start:end], dtype=torch.long)
+        labels = torch.tensor(data_labels[start:end], dtype=torch.long)
+        labels = labels.masked_fill(labels == ignore_label_id, IGNORE_LABEL_ID)
         
         # if probabilist_trm:
         #     pass
         #     _, _, logits, _ = model.probabilistic_predict(dataset_input, max_recurrent_steps, probabilistic_rollouts, 0.2)
         # else:
         #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
+
         _, _, logits, _, trajectories = model.predict(dataset_input, max_recurrent_steps, W_slice, register_trajectories)
 
         if register_trajectories:
@@ -70,6 +75,7 @@ def evaluate_model(
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
 
+
     return {
         "val_loss": total_val_loss / max(total_puzzles, 1),
         "token_acc": correct_tokens / max(total_tokens, 1),
@@ -89,9 +95,6 @@ def parse_args():
     parser.add_argument("--labels-path", type=str,
                         default="data/sudoku4x4/test/labels.npy",
                         help="Path to validation labels .npy file")
-    parser.add_argument("--group-indices-path", type=str,
-                        default="data/sudoku4x4/test/group_indices.npy",
-                        help="Path to validation group indices .npy file")
     parser.add_argument("--metadata-path", type=str, default=None,
                         help="Path to metadata.json file (defaults to inputs parent directory)")
     parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
@@ -110,16 +113,16 @@ def parse_args():
                         help="Expansion factor for the hidden size in the Transformer layers")
     parser.add_argument("--num-heads", type=int, default=8,
                         help="Number of attention heads in the Transformer layers")
-    parser.add_argument("--probabilistic-trm", action="store_true",
-                        help="Use probabilistic TRM prediction instead of deterministic prediction")
-    parser.add_argument("--probabilistic-rollouts", type=int, default=1,
-                        help="Number of rollouts when using probabilistic TRM")
+    # parser.add_argument("--probabilistic-trm", action="store_true",
+    #                     help="Use probabilistic TRM prediction instead of deterministic prediction")
+    # parser.add_argument("--probabilistic-rollouts", type=int, default=1,
+    #                     help="Number of rollouts when using probabilistic TRM")
     parser.add_argument("--hidden-size", type=int, default=512,
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
-    parser.add_argument("--matryoshka-from", type=int, default=None,
-                        help="Enable Matryoshka evalaution from this size (inclusive) and then double to reach hidden size")
+    parser.add_argument("--enable-matryoshka-from", type=int, default=None,
+                        help="Enable Matryoshka evaluation from this size (inclusive) and then double to reach hidden size")
     parser.add_argument("--mlp-t", action="store_true",
                         help="Use MLP for temporal mixing instead of self-attention")
     
@@ -133,21 +136,13 @@ if __name__ == '__main__':
     print(f"Using device: {device}")
 
     metadata_path = Path(args.metadata_path) if args.metadata_path is not None else Path(args.inputs_path).parent / "metadata.json"
+    
     with open(metadata_path, "r") as f:
         metadata = json.load(f)
 
     vocab_size = metadata["vocab_size"]
     seq_len = metadata["seq_len"]
     num_registers = 16
-
-    val_dataset = PuzzleDataset(
-        inputs_path=args.inputs_path,
-        labels_path=args.labels_path,
-        group_indices_path=args.group_indices_path,
-        batch_size=args.batch_size,
-        seed=42,
-        ignore_label_id=metadata["ignore_label_id"]
-    )
 
     network = nn.Sequential(
         *[
@@ -176,31 +171,34 @@ if __name__ == '__main__':
     model.load_state_dict(checkpoint["ema_model_state_dict"])
     model.to(device)
 
-    if args.matryoshka_from is not None:
+    if args.enable_matryoshka_from is not None:
         matryoshka_sizes = [
-            args.matryoshka_from * 2**i for i in range(int(math.log2(args.hidden_size // args.matryoshka_from)) + 1)
+            args.enable_matryoshka_from * 2**i for i in range(int(math.log2(args.hidden_size // args.enable_matryoshka_from)) + 1)
         ]
         print(f"Matryoshka evaluation enabled with hidden sizes: {matryoshka_sizes}")
     else:
         print("Matryoshka evaluation disabled. Using single hidden size.")
         matryoshka_sizes = [args.hidden_size]
 
-
     results_path = Path(args.results_path)
     results_path.mkdir(parents=True, exist_ok=True)
     
     output = []
     
-    for W_slice in matryoshka_sizes:
+    for i, W_slice in enumerate(matryoshka_sizes):
+        is_last = (i == len(matryoshka_sizes) - 1)
+
         print('Evaluating with W_slice =', W_slice)
 
         results = evaluate_model(
             model,
-            val_dataset,
-            device,
+            inputs_path=Path(args.inputs_path),
+            labels_path=Path(args.labels_path),
+            batch_size=args.batch_size,
+            ignore_label_id=metadata["ignore_label_id"],
             max_recurrent_steps=args.max_recurrent_steps,
             W_slice=W_slice,
-            register_trajectories=False
+            register_trajectories=is_last
         )
 
         output.append({
@@ -210,13 +208,14 @@ if __name__ == '__main__':
             "exact_match": f"{results['exact_match']:.4f}"
         })
 
+        # save directly last trajectories
+        if is_last:
+            np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
 
-        #np.savez(results_path / f'trajectories-{W_slice}.npz', results['trajectories'])
 
-    with open(results_path / f'results.json', 'w') as f:
-        json.dump(output, f)
+    with open(results_path / 'results.json', 'w') as f:
+        json.dump(output, f, indent=4)
 
-    #np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
 
     print('Results saved at ', results_path)
 
