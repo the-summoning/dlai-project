@@ -6,25 +6,23 @@ import json
 import math
 
 from model.trm import TinyRecursiveModel
-from model.stablemax_ce_loss import stablemax_cross_entropy
+from torch.nn import functional as F
 from model.layers import TransformerBlock
 from pathlib import Path
-
 from puzzle_datasets.puzzle_dataset import IGNORE_LABEL_ID
 
 
 @torch.inference_mode()
-def evaluate_model(
+def evaluate(
     model: TinyRecursiveModel,
     inputs_path: Path,
     labels_path: Path,
     batch_size: int,
+    device: torch.device,
     ignore_label_id: int,
     max_recurrent_steps: int,
     W_slice: int | None = None,
-    register_trajectories: bool = False,
-    # probabilist_trm: bool = False,
-    # probabilistic_rollouts: int = 1,
+    register_trajectories: bool = False
 ) -> dict:
     model.eval()
 
@@ -62,11 +60,12 @@ def evaluate_model(
         final_preds = logits.argmax(-1)  # (B, seq)
 
         mask = labels != IGNORE_LABEL_ID
-        loss_counts = mask.sum(-1).clamp_min(1)
-        lm_loss = (
-            stablemax_cross_entropy(logits, labels, ignore_index=IGNORE_LABEL_ID, valid_mask=mask)
-            / loss_counts.unsqueeze(-1)
-        ).sum()
+        lm_loss = F.cross_entropy(
+            logits.reshape(-1, vocab_size),
+            labels.reshape(-1),
+            ignore_index=IGNORE_LABEL_ID,
+            reduction="mean"
+        )
         total_val_loss += lm_loss.item()
 
         correct_tokens += (mask & (final_preds == labels)).sum().item()
@@ -190,11 +189,12 @@ if __name__ == '__main__':
 
         print('Evaluating with W_slice =', W_slice)
 
-        results = evaluate_model(
+        results = evaluate(
             model,
             inputs_path=Path(args.inputs_path),
             labels_path=Path(args.labels_path),
             batch_size=args.batch_size,
+            device=device,
             ignore_label_id=metadata["ignore_label_id"],
             max_recurrent_steps=args.max_recurrent_steps,
             W_slice=W_slice,

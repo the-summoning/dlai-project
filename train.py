@@ -14,7 +14,6 @@ from tqdm.auto import tqdm
 from pathlib import Path
 from torch.nn import functional as F
 from torch.nn.utils import clip_grad_norm_
-from evaluation import evaluate_model
 
 
 @torch.no_grad()
@@ -37,6 +36,60 @@ def update_ema_model(
 
     for name in ema_buffers:
         ema_buffers[name].copy_(model_buffers[name])
+
+
+@torch.inference_mode()
+def val_epoch(
+    model: TinyRecursiveModel,
+    val_dataset: PuzzleDataset,
+    device: torch.device,
+    max_recurrent_steps: int,
+    W_slice: int | None = None
+) -> dict:
+    model.eval()
+    
+    num_batches = val_dataset.num_groups // val_dataset.batch_size
+
+    total_tokens = 0
+    correct_tokens = 0
+    total_puzzles = 0
+    exact_puzzles = 0
+    total_val_loss = 0.0
+
+    pbar = tqdm(val_dataset, total=num_batches, desc="Validation")
+    
+    for batch in pbar:
+        dataset_input = batch["inputs"].to(device)
+        labels = batch["labels"].to(device)
+
+        _, _, logits, _, _ = model.predict(dataset_input, max_recurrent_steps, W_slice, False)
+
+        final_preds = logits.argmax(-1)  # (B, seq)
+
+        mask = labels != IGNORE_LABEL_ID
+
+        lm_loss = F.cross_entropy(
+            logits.reshape(-1, vocab_size),
+            labels.reshape(-1),
+            ignore_index=IGNORE_LABEL_ID,
+            reduction="mean"
+        )
+        total_val_loss += lm_loss.item()
+
+        correct_tokens += (mask & (final_preds == labels)).sum().item()
+        total_tokens   += mask.sum().item()
+
+        exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
+        total_puzzles += labels.shape[0]
+
+    return {
+        "val_loss": total_val_loss / max(total_puzzles, 1),
+        "token_acc": correct_tokens / max(total_tokens, 1),
+        "exact_match": exact_puzzles  / max(total_puzzles, 1),
+        "trajectories": None,
+    }
+
+
 
 
 def train(
@@ -206,12 +259,11 @@ def train(
 
         if epoch % eval_interval == 0:
             # ── Validation
-            metrics = evaluate_model(
+            metrics = val_epoch(
                 model=model if not use_ema else ema_model, # type: ignore
                 val_dataset=val_dataset,
                 device=device,
-                max_recurrent_steps=max_recurrent_steps,
-                #probabilist_trm=False
+                max_recurrent_steps=max_recurrent_steps
             )
 
             scheduler.step(metrics["exact_match"])
