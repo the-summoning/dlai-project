@@ -120,6 +120,9 @@ def parse_args():
                         help="Number of TransformerBlock layers in the network")
     parser.add_argument("--matryoshka-from", type=int, default=None,
                         help="Enable Matryoshka evalaution from this size (inclusive) and then double to reach hidden size")
+    parser.add_argument("--mlp-t", action="store_true",
+                        help="Use MLP for temporal mixing instead of self-attention")
+    
     return parser.parse_args()
 
 
@@ -153,7 +156,8 @@ if __name__ == '__main__':
                 hidden_size=args.hidden_size,
                 expansion=args.expansion,
                 seq_len=seq_len,
-                num_registers=num_registers
+                num_registers=num_registers,
+                use_mlp_t=args.mlp_t
             )
             for _ in range(args.num_transformer_blocks)
         ]
@@ -186,7 +190,7 @@ if __name__ == '__main__':
     trajectories_per_W_slice = {}
     
     for W_slice in matryoshka_sizes:
-        print('Evaluationg with W_slice =', W_slice)
+        print('Evaluating with W_slice =', W_slice)
 
         results = evaluate_model(
             model,
