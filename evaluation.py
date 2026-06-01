@@ -3,6 +3,7 @@ import argparse
 import torch
 import torch.nn as nn
 import json
+import math
 
 from model.trm import TinyRecursiveModel
 from model.stablemax_ce_loss import stablemax_cross_entropy
@@ -95,8 +96,8 @@ def parse_args():
                         help="Path to metadata.json file (defaults to inputs parent directory)")
     parser.add_argument("--checkpoint-path", type=str, default="checkpoints/best.pt",
                         help="Path to the checkpoint file to load")
-    parser.add_argument("--trajectories-path", type=str, default="trajectories.pt",
-                        help="Path where to save trajectories")
+    parser.add_argument("--results-path", type=str, default="./results/sudoku4x4",
+                        help="Path where to save results")
     parser.add_argument("--batch-size", type=int, default=16,
                         help="Batch size for the PuzzleDataset")
     parser.add_argument("--max-recurrent-steps", type=int, default=12,
@@ -109,8 +110,6 @@ def parse_args():
                         help="Expansion factor for the hidden size in the Transformer layers")
     parser.add_argument("--num-heads", type=int, default=8,
                         help="Number of attention heads in the Transformer layers")
-    parser.add_argument("--w-slice", type=int, default=None,
-                        help="Number of hidden dimensions to use from prediction/halt heads (W_slice).")
     parser.add_argument("--probabilistic-trm", action="store_true",
                         help="Use probabilistic TRM prediction instead of deterministic prediction")
     parser.add_argument("--probabilistic-rollouts", type=int, default=1,
@@ -119,6 +118,8 @@ def parse_args():
                         help="Hidden size for TransformerBlock layers and model")
     parser.add_argument("--num-transformer-blocks", type=int, default=4,
                         help="Number of TransformerBlock layers in the network")
+    parser.add_argument("--matryoshka-from", type=int, default=None,
+                        help="Enable Matryoshka evalaution from this size (inclusive) and then double to reach hidden size")
     return parser.parse_args()
 
 
@@ -171,24 +172,47 @@ if __name__ == '__main__':
     model.load_state_dict(checkpoint["ema_model_state_dict"])
     model.to(device)
 
-    results = evaluate_model(
-        model,
-        val_dataset,
-        device,
-        max_recurrent_steps=args.max_recurrent_steps,
-        W_slice=args.w_slice,
-        register_trajectories=True
-    )
+    if args.matryoshka_from is not None:
+        matryoshka_sizes = [
+            args.matryoshka_from * 2**i for i in range(int(math.log2(args.hidden_size // args.matryoshka_from)) + 1)
+        ]
+        print(f"Matryoshka evaluation enabled with hidden sizes: {matryoshka_sizes}")
+    else:
+        print("Matryoshka evaluation disabled. Using single hidden size.")
+        matryoshka_sizes = [args.hidden_size]
 
-    print("Evaluation results:")
-    print(f"  val_loss={results['val_loss']:.4f}")
-    print(f"  token_acc={results['token_acc']:.4f}")
-    print(f"  exact_match={results['exact_match']:.4f}")
+    
+    output = []
+    trajectories_per_W_slice = {}
+    
+    for W_slice in matryoshka_sizes:
+        print('Evaluationg with W_slice =', W_slice)
 
-    trajectories_path = Path(args.trajectories_path)
-    trajectories_path.parent.mkdir(parents=True, exist_ok=True)
+        results = evaluate_model(
+            model,
+            val_dataset,
+            device,
+            max_recurrent_steps=args.max_recurrent_steps,
+            W_slice=W_slice,
+            register_trajectories=True
+        )
 
-    np.savez(trajectories_path, **results['trajectories'])
+        output.append({
+            "W_slice": W_slice,
+            "val_loss": f"{results['val_loss']:.4f}",
+            "token_acc": f"{results['token_acc']:.4f}",
+            "exact_match": f"{results['exact_match']:.4f}"
+        })
 
-    print('Trajectories saved at ', trajectories_path)
+        trajectories_per_W_slice[W_slice] = results['trajectories']
+
+    results_path = Path(args.results_path)
+    results_path.mkdir(parents=True, exist_ok=True)
+
+    with open(results_path / 'results.json', 'w') as f:
+        json.dump(output, f)
+
+    np.savez(results_path / 'trajectories.npz', **trajectories_per_W_slice)
+
+    print('Results saved at ', results_path)
 
