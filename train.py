@@ -332,6 +332,8 @@ def parse_args():
                         help="Number of high level iterations (T) (# times the model can re-process its own output)")
     parser.add_argument("--n", type=int, default=6,
                         help="Number of low level iterations (n) (# times the model processes the input before producing an output)")
+    parser.add_argument("--registers", type=int, default=16,
+                        help="Number of registers to be used in the model (including CLS token)")
     parser.add_argument("--expansion", type=float, default=4.0,
                         help="Expansion factor for the hidden size in the Transformer layers")
     parser.add_argument("--num-heads", type=int, default=8,
@@ -411,7 +413,7 @@ if __name__ == "__main__":
         ignore_label_id=metadata["ignore_label_id"]
     )    
 
-    num_registers = 16 # just CLS token, used to halt
+    num_registers = args.registers # just CLS token, used to halt
     
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
     print(f"Train dataset: {args.train_inputs_path}")
