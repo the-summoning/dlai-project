@@ -110,6 +110,8 @@ def parse_args():
                         help="Number of low level iterations (n) (# times the model processes the input before producing an output)")
     parser.add_argument("--expansion", type=float, default=4.0,
                         help="Expansion factor for the hidden size in the Transformer layers")
+    parser.add_argument("--registers", type=int, default=16,
+                        help="Number of registers to be used in the model (including CLS token)")
     parser.add_argument("--num-heads", type=int, default=8,
                         help="Number of attention heads in the Transformer layers")
     # parser.add_argument("--probabilistic-trm", action="store_true",
@@ -141,7 +143,7 @@ if __name__ == '__main__':
 
     vocab_size = metadata["vocab_size"]
     seq_len = metadata["seq_len"]
-    num_registers = 16
+    num_registers = args.registers
 
     network = nn.Sequential(
         *[
