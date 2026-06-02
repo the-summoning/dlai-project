@@ -1,3 +1,5 @@
+from typing import Literal
+
 import numpy as np
 import torch
 import torch.nn as nn
@@ -34,8 +36,14 @@ class TinyRecursiveModel(nn.Module):
         n: int = 6,
         T: int = 3,
         num_registers: int = 16,
+        track_latents: bool = False,
     ):
         super().__init__()
+
+        if track_latents:
+            self.enable_tracking()
+        else:
+            self.disable_tracking()
 
         self.n = n
         self.T = T
@@ -65,14 +73,16 @@ class TinyRecursiveModel(nn.Module):
             if module.bias is not None:
                 nn.init.zeros_(module.bias)    
 
+    def enable_tracking(self):
+        self.track_latents = True
+        self.trajectory = {"y": [], "z": [], "halt_logits": []}
 
-    def latent_recursion(self, x, y, z):
-        for _ in range(self.n):
-            z = self.network(y + z + x)
-        
-        y = self.network(y + z)
+    def disable_tracking(self):
+        self.track_latents = False
 
-        return y, z
+    def track(self, tensor, latent_type: Literal["y", "z", "halt_logits"]):
+        if self.track_latents:
+            self.trajectory[latent_type].append(tensor.cpu().numpy()) # type: ignore
 
     def embedding(self, x):
         inputs = self.embed_tokens(x)
@@ -80,10 +90,18 @@ class TinyRecursiveModel(nn.Module):
 
         return torch.cat([registers, inputs], dim=1)
 
+    def latent_recursion(self, x, y, z):
+        for _ in range(self.n):
+            z = self.network(y + z + x)
+            self.track(z, "z")
+        
+        y = self.network(y + z)
+        self.track(y, "y")
+
+        return y, z
+
     # deep supervision
     def forward(self, x, y, z):
-        # sample K times and learn to move the samples to similar latents with the same output (MRL)
-
         # # recursing T−1 times to improve outputs and latents (no gradients needed)
         with torch.no_grad():
             for _ in range(self.T - 1): # high level
@@ -94,14 +112,12 @@ class TinyRecursiveModel(nn.Module):
 
         return y, z # detached outside in order to use MRL
 
-
     @torch.inference_mode()
     def predict(
         self,
         inputs: torch.Tensor, 
         N_supervision: int,
-        W_slice: int | None = None,
-        collect_trajectories: bool = False,
+        W_slice: int | None = None
     ):
         W_slice = W_slice or self.prediction_head.weight.shape[1] # default to hidden size
 
@@ -111,35 +127,18 @@ class TinyRecursiveModel(nn.Module):
     
         Q_m = self.halt_head.weight[:, :W_slice]
 
-        trajectory = {
-            "y": [],
-            "z": [],
-            "halt_logits": []
-        }
-    
         for _ in range(N_supervision):            
             y, z = self.forward(x, y, z)
 
-            if collect_trajectories:
-                trajectory["y"].append(y.cpu().numpy()) # type: ignore
-                trajectory["z"].append(z.cpu().numpy()) # type: ignore
-
+            if self.track_latents:
                 halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
-
-                trajectory['halt_logits'].append(halt_logits.cpu().numpy()) # type: ignore
+                self.track(halt_logits, "halt_logits")
 
         W_m = self.prediction_head.weight[:, :W_slice]
 
         logits = F.linear(y[:, self.num_registers:, :W_slice], W_m)
 
-        if collect_trajectories:
-            trajectory["y"] = np.stack(trajectory["y"], axis=1)  # type: ignore # (B,T,S,D)
-            trajectory["z"] = np.stack(trajectory["z"], axis=1)  # type: ignore # (B,T,S,D)
-            trajectory["halt_logits"] = np.stack(trajectory["halt_logits"], axis=1)  # type: ignore # (B,T)
-        else:
-            trajectory = None
-
-        return logits, trajectory 
+        return logits 
     
 
     # @torch.inference_mode()

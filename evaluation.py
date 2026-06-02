@@ -22,7 +22,7 @@ def evaluate(
     ignore_label_id: int,
     max_recurrent_steps: int,
     W_slice: int | None = None,
-    register_trajectories: bool = False
+    enable_tracking: bool = False
 ) -> dict:
     model.eval()
 
@@ -34,7 +34,7 @@ def evaluate(
 
     z_trajectories = []
     y_trajectories = []
-    halt_logits_trajectories = []
+    halt_trajectories = []
 
     data_inputs = np.load(inputs_path, mmap_mode="r")
     data_labels = np.load(labels_path, mmap_mode="r")
@@ -52,17 +52,14 @@ def evaluate(
         # else:
         #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
 
-        logits, trajectories = model.predict(
-            dataset_input, 
-            max_recurrent_steps, 
-            W_slice,
-            register_trajectories
-        )
+        if enable_tracking:
+            model.enable_tracking()
 
-        if register_trajectories and trajectories is not None:
-            z_trajectories.append(trajectories['z'])
-            y_trajectories.append(trajectories['y'])
-            halt_logits_trajectories.append(trajectories['halt_logits'])
+        logits = model.predict(dataset_input, max_recurrent_steps, W_slice)
+
+        z_trajectories.append(np.stack(model.trajectory["z"], axis=1)) # type: ignore
+        y_trajectories.append(np.stack(model.trajectory["y"], axis=1)) # type: ignore
+        halt_trajectories.append(np.stack(model.trajectory["halt_logits"], axis=1)) # type: ignore
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -76,11 +73,12 @@ def evaluate(
         total_val_loss += lm_loss.item()
 
         correct_tokens += (mask & (final_preds == labels)).sum().item()
-        total_tokens   += mask.sum().item()
+        total_tokens += mask.sum().item()
 
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
 
+    model.disable_tracking()
 
     return {
         "val_loss": total_val_loss / max(total_puzzles, 1),
@@ -89,8 +87,8 @@ def evaluate(
         "trajectories": {
             'z': np.concatenate(z_trajectories, axis=0),
             'y': np.concatenate(y_trajectories, axis=0),
-            'halt_logits': np.concatenate(halt_logits_trajectories, axis=0)
-        } if register_trajectories else None,
+            'halt_logits': np.concatenate(halt_trajectories, axis=0)
+        } if enable_tracking else None,
     }
 
 
@@ -208,7 +206,7 @@ if __name__ == '__main__':
             ignore_label_id=metadata["ignore_label_id"],
             max_recurrent_steps=args.max_recurrent_steps,
             W_slice=W_slice,
-            register_trajectories=is_last
+            enable_tracking=is_last
         )
 
         output.append({

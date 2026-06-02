@@ -47,6 +47,7 @@ def val_epoch(
     W_slice: int | None = None
 ) -> dict:
     model.eval()
+    model.disable_tracking()
     
     num_batches = val_dataset.num_groups // val_dataset.batch_size
 
@@ -62,7 +63,7 @@ def val_epoch(
         dataset_input = batch["inputs"].to(device)
         labels = batch["labels"].to(device)
 
-        logits, _ = model.predict(dataset_input, max_recurrent_steps, W_slice, False)
+        logits = model.predict(dataset_input, max_recurrent_steps, W_slice)
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -77,7 +78,7 @@ def val_epoch(
         total_val_loss += lm_loss.item()
 
         correct_tokens += (mask & (final_preds == labels)).sum().item()
-        total_tokens   += mask.sum().item()
+        total_tokens += mask.sum().item()
 
         exact_puzzles += ((final_preds == labels) | ~mask).all(dim=-1).sum().item()
         total_puzzles += labels.shape[0]
@@ -446,6 +447,7 @@ if __name__ == "__main__":
         n=args.n, # 6
         T=args.T, # 3
         num_registers=num_registers,
+        track_latents=False
     )
     
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
