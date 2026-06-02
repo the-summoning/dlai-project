@@ -35,15 +35,11 @@ class TinyRecursiveModel(nn.Module):
         network: nn.Module,
         n: int = 6,
         T: int = 3,
-        num_registers: int = 16,
-        track_latents: bool = False,
+        num_registers: int = 16
     ):
         super().__init__()
 
-        if track_latents:
-            self.enable_tracking()
-        else:
-            self.disable_tracking()
+        self.track_latents = False
 
         self.n = n
         self.T = T

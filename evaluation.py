@@ -57,9 +57,10 @@ def evaluate(
 
         logits = model.predict(dataset_input, max_recurrent_steps, W_slice)
 
-        z_trajectories.append(np.stack(model.trajectory["z"], axis=1)) # type: ignore
-        y_trajectories.append(np.stack(model.trajectory["y"], axis=1)) # type: ignore
-        halt_trajectories.append(np.stack(model.trajectory["halt_logits"], axis=1)) # type: ignore
+        if enable_tracking:
+            z_trajectories.append(np.stack(model.trajectory["z"], axis=1)) # type: ignore
+            y_trajectories.append(np.stack(model.trajectory["y"], axis=1)) # type: ignore
+            halt_trajectories.append(np.stack(model.trajectory["halt_logits"], axis=1)) # type: ignore
 
         final_preds = logits.argmax(-1)  # (B, seq)
 

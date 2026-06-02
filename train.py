@@ -446,8 +446,7 @@ if __name__ == "__main__":
         network=network,
         n=args.n, # 6
         T=args.T, # 3
-        num_registers=num_registers,
-        track_latents=False
+        num_registers=num_registers
     )
     
     print(f"Model parameters: {sum(p.numel() for p in model.parameters()):,}")
