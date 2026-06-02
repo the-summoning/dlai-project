@@ -126,7 +126,7 @@ class TinyRecursiveModel(nn.Module):
 
                 halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
 
-                trajectory['halt_logits'] = halt_logits.cpu().numpy() # type: ignore
+                trajectory['halt_logits'].append(halt_logits.cpu().numpy()) # type: ignore
 
         W_m = self.prediction_head.weight[:, :W_slice]
 
