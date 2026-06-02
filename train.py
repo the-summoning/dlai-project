@@ -62,7 +62,7 @@ def val_epoch(
         dataset_input = batch["inputs"].to(device)
         labels = batch["labels"].to(device)
 
-        _, _, logits, _, _ = model.predict(dataset_input, max_recurrent_steps, W_slice, False)
+        logits, _ = model.predict(dataset_input, max_recurrent_steps, W_slice, False)
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -88,8 +88,6 @@ def val_epoch(
         "exact_match": exact_puzzles  / max(total_puzzles, 1),
         "trajectories": None,
     }
-
-
 
 
 def train(

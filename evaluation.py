@@ -34,6 +34,7 @@ def evaluate(
 
     z_trajectories = []
     y_trajectories = []
+    halt_logits_trajectories = []
 
     data_inputs = np.load(inputs_path, mmap_mode="r")
     data_labels = np.load(labels_path, mmap_mode="r")
@@ -51,11 +52,17 @@ def evaluate(
         # else:
         #     _, _, logits, _ = model.predict(dataset_input, max_recurrent_steps)
 
-        _, _, logits, _, trajectories = model.predict(dataset_input, max_recurrent_steps, W_slice, register_trajectories)
+        logits, trajectories = model.predict(
+            dataset_input, 
+            max_recurrent_steps, 
+            W_slice,
+            register_trajectories
+        )
 
-        if register_trajectories:
+        if register_trajectories and trajectories is not None:
             z_trajectories.append(trajectories['z'])
             y_trajectories.append(trajectories['y'])
+            halt_logits_trajectories.append(trajectories['halt_logits'])
 
         final_preds = logits.argmax(-1)  # (B, seq)
 
@@ -81,7 +88,8 @@ def evaluate(
         "exact_match": exact_puzzles  / max(total_puzzles, 1),
         "trajectories": {
             'z': np.concatenate(z_trajectories, axis=0),
-            'y': np.concatenate(y_trajectories, axis=0)
+            'y': np.concatenate(y_trajectories, axis=0),
+            'halt_logits': np.concatenate(halt_logits_trajectories, axis=0)
         } if register_trajectories else None,
     }
 

@@ -108,31 +108,38 @@ class TinyRecursiveModel(nn.Module):
         x = self.embedding(inputs)
         y = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
         z = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
+    
+        Q_m = self.halt_head.weight[:, :W_slice]
 
-        # zeros are implicit
         trajectory = {
             "y": [],
-            "z": []
+            "z": [],
+            "halt_logits": []
         }
     
         for _ in range(N_supervision):            
             y, z = self.forward(x, y, z)
 
             if collect_trajectories:
-                trajectory["y"].append(y.cpu().numpy())
-                trajectory["z"].append(z.cpu().numpy())
+                trajectory["y"].append(y.cpu().numpy()) # type: ignore
+                trajectory["z"].append(z.cpu().numpy()) # type: ignore
+
+                halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
+
+                trajectory['halt_logits'] = halt_logits.cpu().numpy() # type: ignore
 
         W_m = self.prediction_head.weight[:, :W_slice]
-        Q_m = self.halt_head.weight[:, :W_slice]
 
         logits = F.linear(y[:, self.num_registers:, :W_slice], W_m)
-        halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
 
         if collect_trajectories:
             trajectory["y"] = np.stack(trajectory["y"], axis=1)  # type: ignore # (B,T,S,D)
             trajectory["z"] = np.stack(trajectory["z"], axis=1)  # type: ignore # (B,T,S,D)
+            trajectory["halt_logits"] = np.stack(trajectory["halt_logits"], axis=1)  # type: ignore # (B,T)
+        else:
+            trajectory = None
 
-        return y, z, logits, halt_logits, trajectory
+        return logits, trajectory 
     
 
     # @torch.inference_mode()
