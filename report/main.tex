@@ -1,0 +1,147 @@
+\documentclass{article}
+
+\usepackage{booktabs}
+\usepackage{multirow}
+\usepackage{amsmath}
+\usepackage{hyperref}
+\usepackage{overpic}
+\usepackage{amssymb}
+\usepackage{cuted}
+\usepackage[accepted]{dlaiml2026}
+
+%%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
+\dlaititlerunning{Analyzing and Accelerating Trajectories in Tiny Recursive Models}
+
+\begin{document}
+
+\twocolumn[
+%%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
+\dlaititle{Analyzing and Accelerating Trajectories in Tiny Recursive Models}
+
+\begin{center}\today\end{center}
+
+\begin{dlaiauthorlist}
+%%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
+\dlaiauthor{Davide Perniconi}{}
+\end{dlaiauthorlist}
+
+%%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
+\dlaicorrespondingauthor{Davide Perniconi}{perniconi.1889270@studenti.uniroma1.it}
+
+\vskip 0.3in
+]
+
+\printAffiliationsAndNotice{}
+
+\begin{abstract}
+%
+
+The Tiny Recursive Model (TRM) is a recursive architecture that solves reasoning
+problems that large LLMs struggle even to approach.Despite its success, the underlying geometric evolution of its hidden 
+states remains poorly understood. In this paper, we independently 
+implement TRM from scratch and investigate the structural behavior of 
+its latent reasoning ($z$) and prediction ($y$) trajectories by 
+computing first- and second-order geometric metrics. We find that in the initial execution steps,
+the trajectory updates exhibit a spiral-like behavior, which subsequently transitions into a 
+significantly smoother, predictable trajectory. As an extension, we 
+also analyze the impact of Matryoshka Representation Learning (MRL) on two synthetic small datasets.
+Finally, we address the inference  bottleneck of executing all supervision steps for complex tasks like ARC-AGI.
+Driven by the poor effectivness of early-stopping based on the first- and second-order metrics we 
+propose an application of PCA with regularized Ridge Regression which estimates final temporal 
+high-dimensional latents  by exploiting early-stage information.
+
+%
+\end{abstract}
+
+
+% ------------------------------------------------------------------------------
+\section{Related Work}
+
+Our work is grounded in recent advancements in the field of latent recurrence as an efficient alternative to traditional 
+autoregressive Chain-of-Thought (CoT).
+
+\begin{itemize}
+    \item \textbf{Tiny Recursive Model (TRM):}
+    \citet{trm} simplifies the HRM biology-inspired architecture \cite {hrm} by iteratively processing hidden states through a \textit{single} 2-layer network with deep supervision.
+    %Despite its compact design, TRM solves complex puzzles using less than 0.01\% of the parameters required by frontier models.
+
+    \item \textbf{Geometric Metrics and Acceleration-based Early Stopping:}
+    \citet{latent-dynamics} shows that inside recurrent-depth Transformers the internal representations evolve on two distinct scales, fine-grained local refinements and a larger-scale drift.
+    They track first- and second-order metrics and they introduce an early-exit mechanism based on \textit{acceleration}.
+
+    \item \textbf{Probabilistc TRM (PTRM):}
+    \citet{ptrm} proposes a simple yet expensive training-free extension which injects gaussian noise during recursion.
+    Although PTRM leads to great accuracy gains, it severely sacrifices time inference, requiring up to 100 parallel rollouts per each sample.
+\end{itemize}
+
+
+\paragraph{Our Contribution are:}
+
+\begin{itemize}
+    \item We \textbf{implement from scratch TRM} and train it on manageable datasets: Maze5x5 and Maze10x10. For these smaller problems
+    peak performance are reached by using just one supervision step ($\texttt{N\_sup} = 1$).
+    \item We apply \textbf{Matryoshka Representation Learning}, studying if it collides with the \textit{deep supervision} used
+    inside the training loop and its effects.
+    \item \textbf{Geometric study} of TRM latent spaces, we empirically show that from a certain supervision step the
+    trajectory follows a predictable path, becoming smooth and less orthogonal.
+    \item Consequently, we assess the feaseability of early stopping on the complex benchmark ARC-AGI v1. We show that all supervision steps are
+    needed but they can be \textbf{accelerated} by combining PCA and Linear Regression.
+\end{itemize}
+
+
+% ------------------------------------------------------------------------------
+\section{Method}
+
+Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
+
+
+% ------------------------------------------------------------------------------
+\section{Experimental results}
+
+
+\begin{strip}
+    \begin{center}
+        \includegraphics[width=1\linewidth]{./figures/arc-ag1_v1.png}
+        \includegraphics[width=1\linewidth]{./figures/maze10x10_noMRL.png}
+    \end{center}        
+\end{strip}
+
+
+
+% ------------------------------------------------------------------------------
+\section{Conclusions}
+
+Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
+
+% ------------------------------------------------------------------------------
+\section{Future work}
+
+Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
+
+
+
+\section{Statement on the use of AI}\label{sec:ai}
+%
+Students must include a brief statement describing whether AI tools were used in the project and, if so, how they were used. This declaration is required for transparency, but it is not intended to penalize the use of AI in any way. A project may receive any grade in the full $0 - 31$ range regardless of whether AI tools were used extensively, minimally, or not at all.
+
+The statement should clearly indicate the role of AI in the project. Examples include, but are not limited to: rephrasing or editing parts of the report, assisting with code writing, implementing core algorithms, preparing experiment scripts, debugging, data processing, literature exploration, or generating plots and other supporting material. Students are expected to be honest and sufficiently specific.
+
+The responsibility for the submitted work always remains with the student(s). In particular, students must fully understand, verify, and be able to explain any material produced with the help of AI tools.
+
+\textbf{Misuse of AI will be penalized.} Examples include submitting AI-generated material that the student does not understand, cannot justify, or cannot explain if required to do so; presenting AI-produced text, code, experimental results, or claims as if they had been independently developed or verified when this is not the case; or providing inaccurate or misleading declarations about the actual use of AI in the project.
+
+There is no strict length limit for this section, but in most cases one column or less should be sufficient.
+
+
+\section{Limitations}
+
+
+\bibliography{references.bib}
+\bibliographystyle{dlaiml2026}
+
+\section*{Appendix}
+%
+In case you need an appendix, this is the right place to append it.
+
+\end{document}
+

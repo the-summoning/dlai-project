@@ -5,3 +5,99 @@ weights/weights/
 *.pt
 data/
 checkpoints/
+
+
+
+
+## --- FILE DI OUTPUT PRINCIPALI ---
+# Puoi de-commentare queste righe se NON vuoi tracciare i PDF finali su Git
+# (Consigliato se il PDF cambia a ogni minima modifica del testo)
+# *.pdf
+# *.dvi
+# *.ps
+
+## --- FILE AUSILIARI DI BASE (LaTeX) ---
+*.aux
+*.log
+*.toc
+*.lof
+*.lot
+*.out
+*.fls
+*.fmt
+*.fot
+*.cb
+*.cb2
+.*.lb
+
+## --- STRUMENTI DI COMPILAZIONE (latexmk, texify, ecc.) ---
+*.fdb_latexmk
+*.synctex
+*.synctex(busy)
+*.synctex.gz
+*.synctex.gz(busy)
+*.pdfsync
+
+## --- BIBLIOGRAFIA E CITAZIONI (BibTeX / BibLaTeX / Biber) ---
+*.bbl
+*.blg
+*.bbg
+*.bcb
+*.bcf
+*.blx.bib
+*.run.xml
+
+## --- INDICI E GLOSSARI (MakeIndex / Glossaries) ---
+*.glo
+*.glg
+*.gls
+*.ilg
+*.ind
+*.ist
+*.idx
+*.idx-prev
+*.mac
+*.nlg
+*.nlo
+*.nls
+*.acn
+*.acr
+*.alg
+
+## --- PACCHETTI SPECIFICI ---
+# hyperref
+*.brf
+
+# listings / minted
+*.lol
+/_minted-*/
+*.pyg
+
+# standalone
+*.sta
+
+# todonotes
+*.tdo
+
+# tcolorbox
+*.listing
+
+# knitr
+*.tex.backup
+*.tex~
+
+## --- FILE DI CONFIGURAZIONE DEGLI EDITORI ---
+# TeXStudio / TeXmaker
+*.bak
+*.texbak
+*~
+*.unkn
+
+# VS Code (se usi LaTeX Workshop)
+.vscode/
+
+# File di sistema nascosti (macOS / Windows)
+.DS_Store
+Thumbs.db
+
+*joblib
