@@ -4,13 +4,14 @@ from sklearn.decomposition import PCA
 # Importazione necessaria per i grafici 3D nelle versioni precedenti di matplotlib
 from mpl_toolkits.mplot3d import Axes3D 
 
-# traj_path ='/home/davide/Documenti/DLAI project/maze10x10_withMRL/trajectories.npz'
-# data = np.load(traj_path, allow_pickle=True)
-# z_traj = data['z']
-
-traj_path ='/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL//trajectories.npz' # sample idx 4
+# traj_path ='/home/davide/Documenti/DLAI project/results/maze10x10_noMRL/trajectories.npz'
+traj_path ='/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL/trajectories.npz'
 data = np.load(traj_path, allow_pickle=True)
-traj = data['y']
+y_traj = data['y']
+
+# traj_path ='/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL//trajectories.npz' # sample idx 4
+# data = np.load(traj_path, allow_pickle=True)
+# traj = data['y']
 
 # traj_path ='/home/davide/Scaricati/AGI test traj/batch_1.npz'
 # data = np.load(traj_path, allow_pickle=True)
@@ -18,10 +19,10 @@ traj = data['y']
 # traj = np.transpose(traj, (1, 0, 2, 3))
 
 # 1. Media sui token per il centro di massa
-z_space = np.mean(traj, axis=2)
+z_space = np.mean(y_traj, axis=2)
 
 # 2. Scegliamo un campione specifico
-SAMPLE_IDX = 4 #60
+SAMPLE_IDX = 255 #60
 single_trajectory = z_space[SAMPLE_IDX] # Shape: (16, 16)
 
 # 3. Applichiamo la PCA per scendere a 3 dimensioni

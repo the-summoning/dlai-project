@@ -204,8 +204,8 @@ def both_trajectories(
     x_label: str,
     title: str,
 ):
-    results_z = compute_metrics(z_traj, dims_to_analyze)
-    results_y = compute_metrics(y_traj, dims_to_analyze)
+    results_z = compute_metrics(z_traj, [d])
+    results_y = compute_metrics(y_traj, [d])
 
     _, axes = plt.subplots(1, 3, figsize=(18, 5))
 
@@ -536,50 +536,64 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
 
 
 if __name__ == "__main__":
-    for path, dims_to_analyze, title in [
-        ("/home/davide/Documenti/DLAI project/results/maze5x5_noMRL", [16], "Maze 5x5"),
-        ("/home/davide/Documenti/DLAI project/results/maze5x5_withMRL", matrioshka_sizes(4, 16), "Maze 5x5 with MRL"),
-        ("/home/davide/Documenti/DLAI project/results/maze10x10_noMRL", [32], "Maze 10x10"),
-        ("/home/davide/Documenti/DLAI project/results/maze10x10_withMRL", matrioshka_sizes(4, 32), "Maze 10x10 with MRL"),
-        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
-        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
-        # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_noMRL", [128], "Sudoku 9x9 (attention)"),
-        # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_withMRL", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
-    ]:
-        path = Path(path)
-        data = np.load(path / 'trajectories.npz', allow_pickle=True)
+    path = Path("/home/davide/Scrivania/prova_traj.npz")
+    data = np.load(path, allow_pickle=True)
 
-        z_traj = data['z']
-        y_traj = data['y']
+    z_traj = data['z']
+    y_traj = data['y']
 
-        x_label = r"Step ($T \cdot n \cdot N_{\mathrm{sup}}$)" if y_traj.shape[0] > 8 else r"Step ($T$)"
+    res_z, res_y = both_trajectories(
+        z_traj,
+        y_traj,
+        32,
+        plot_path=Path(f'./analysis/plots/{path.stem}.png'),
+        x_label="c",
+        title="title"
+    )
+    # for path, dims_to_analyze, title in [
+    #     ("/home/davide/Documenti/DLAI project/results/maze5x5_noMRL", [16], "Maze 5x5"),
+    #     ("/home/davide/Documenti/DLAI project/results/maze5x5_withMRL", matrioshka_sizes(4, 16), "Maze 5x5 with MRL"),
+    #     ("/home/davide/Documenti/DLAI project/results/maze10x10_noMRL", [32], "Maze 10x10"),
+    #     ("/home/davide/Documenti/DLAI project/results/maze10x10_withMRL", matrioshka_sizes(4, 32), "Maze 10x10 with MRL"),
+    #     ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
+    #     ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
+    #     # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_noMRL", [128], "Sudoku 9x9 (attention)"),
+    #     # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_withMRL", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
+    # ]:
+    #     path = Path(path)
+    #     data = np.load(path / 'trajectories.npz', allow_pickle=True)
 
-        if len(dims_to_analyze) > 1:
-            res = trajectory_with_MRL(
-                z_traj, 
-                dims_to_analyze, 
-                Path(f'./analysis/plots/{path.stem}-z_MRL.png'),
-                x_label, 
-                title + ' (z)'
-            )
+    #     z_traj = data['z']
+    #     y_traj = data['y']
+
+    #     x_label = r"Step ($T \cdot n \cdot N_{\mathrm{sup}}$)" if y_traj.shape[0] > 8 else r"Step ($T$)"
+
+    #     if len(dims_to_analyze) > 1:
+    #         res = trajectory_with_MRL(
+    #             z_traj, 
+    #             dims_to_analyze, 
+    #             Path(f'./analysis/plots/{path.stem}-z_MRL.png'),
+    #             x_label, 
+    #             title + ' (z)'
+    #         )
             
-            res = trajectory_with_MRL(
-                y_traj, 
-                dims_to_analyze, 
-                Path(f'./analysis/plots/{path.stem}-y_MRL.png'),
-                x_label, 
-                title + ' (y)'
-            )
+    #         res = trajectory_with_MRL(
+    #             y_traj, 
+    #             dims_to_analyze, 
+    #             Path(f'./analysis/plots/{path.stem}-y_MRL.png'),
+    #             x_label, 
+    #             title + ' (y)'
+    #         )
     
-        else:
-            res_z, res_y = both_trajectories(
-                z_traj,
-                y_traj,
-                dims_to_analyze[0],
-                plot_path=Path(f'./analysis/plots/{path.stem}.png'),
-                x_label=x_label,
-                title=title
-            )
+    #     else:
+    #         res_z, res_y = both_trajectories(
+    #             z_traj,
+    #             y_traj,
+    #             dims_to_analyze[0],
+    #             plot_path=Path(f'./analysis/plots/{path.stem}.png'),
+    #             x_label=x_label,
+    #             title=title
+    #         )
 
 
     # generate_plots_for_y(
