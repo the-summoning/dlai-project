@@ -92,22 +92,21 @@ class TinyRecursiveModel(nn.Module):
         
         y = self.network(y + z)
 
-        self.track(z, "z")
-        self.track(y, "y")
-
         return y, z
 
     # deep supervision
     def forward(self, x, y, z):
-        # # recursing T−1 times to improve outputs and latents (no gradients needed)
         with torch.no_grad():
             for _ in range(self.T - 1): # high level
                 y, z = self.latent_recursion(x, y, z)
+                self.track(z, "z")
+                self.track(y, "y")
         
-        # recursing once to improve outputs and latents
         y, z = self.latent_recursion(x, y, z)
+        self.track(z, "z")
+        self.track(y, "y")
 
-        return y, z # detached outside in order to use MRL
+        return y, z
 
     @torch.inference_mode()
     def predict(

@@ -199,15 +199,18 @@ if __name__ == '__main__':
     results_path = Path(args.results_path)
     results_path.mkdir(parents=True, exist_ok=True)
 
+    if args.early_stopping_tau:
+        TEST_EARLY_STOPPING_MODE = True
+    else:
+        TEST_EARLY_STOPPING_MODE = False
+
     N_supervision_list = [1, 2, 4, 8, 16]
-    
-    output = defaultdict(list)
 
-    for N_sup in N_supervision_list:
+    if TEST_EARLY_STOPPING_MODE:
+        output = defaultdict(list)
+
         for i, W_slice in enumerate(matryoshka_sizes):
-            is_last = (i == len(matryoshka_sizes) - 1) and N_sup == max(N_supervision_list)
-
-            print(f'Evaluating with N_sup = {N_sup} and W_slice = {W_slice}')
+            print(f'Evaluating Early Stopping with W_slice = {W_slice}')
 
             results = evaluate(
                 model,
@@ -216,26 +219,60 @@ if __name__ == '__main__':
                 batch_size=args.batch_size,
                 device=device,
                 ignore_label_id=metadata["ignore_label_id"],
-                N_sup=N_sup,
+                N_sup=2, # all steps to early stop
                 W_slice=W_slice,
-                enable_tracking=is_last,
+                enable_tracking=False,
                 early_stopping_tau=args.early_stopping_tau
             )
 
-            output[N_sup].append({
+            halted_at = results['halted_at']
+
+            output[W_slice].append({
                 "W_slice": W_slice,
                 "val_loss": f"{results['val_loss']:.4f}",
                 "token_acc": f"{results['token_acc']:.4f}",
                 "exact_match": f"{results['exact_match']:.4f}"
             })
 
-            # save directly last trajectories
-            if is_last:
-                np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
+            print(f'Min steps: {halted_at.min()}, mean steps: {halted_at.mean()}, max steps: {halted_at.max()}')
+
+            np.savez(results_path / 'halted_at.npz', halted_at) # type: ignore
+    else:
+        output = defaultdict(list)
+
+        for N_sup in N_supervision_list:
+            for i, W_slice in enumerate(matryoshka_sizes):
+                is_last = (i == len(matryoshka_sizes) - 1) and N_sup == max(N_supervision_list)
+
+                print(f'Evaluating with N_sup = {N_sup} and W_slice = {W_slice}')
+
+                results = evaluate(
+                    model,
+                    inputs_path=Path(args.inputs_path),
+                    labels_path=Path(args.labels_path),
+                    batch_size=args.batch_size,
+                    device=device,
+                    ignore_label_id=metadata["ignore_label_id"],
+                    N_sup=N_sup,
+                    W_slice=W_slice,
+                    enable_tracking=is_last,
+                    early_stopping_tau=None
+                )
+
+                output[N_sup].append({
+                    "W_slice": W_slice,
+                    "val_loss": f"{results['val_loss']:.4f}",
+                    "token_acc": f"{results['token_acc']:.4f}",
+                    "exact_match": f"{results['exact_match']:.4f}"
+                })
+
+                # save directly last trajectories
+                if is_last:
+                    np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
 
 
-    with open(results_path / 'results.json', 'w') as f:
-        json.dump(output, f, indent=4)
+        with open(results_path / 'results.json', 'w') as f:
+            json.dump(output, f, indent=4)
 
 
     print('Results saved at ', results_path)

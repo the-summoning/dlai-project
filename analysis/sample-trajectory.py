@@ -8,21 +8,21 @@ from mpl_toolkits.mplot3d import Axes3D
 # data = np.load(traj_path, allow_pickle=True)
 # z_traj = data['z']
 
-# traj_path ='/home/davide/Documenti/DLAI project/maze10x10_withMRL/trajectories.npz'
-# data = np.load(traj_path, allow_pickle=True)
-# traj = data['y']
-
-traj_path ='/home/davide/Scaricati/AGI test traj/batch_1.npz'
+traj_path ='/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL//trajectories.npz' # sample idx 4
 data = np.load(traj_path, allow_pickle=True)
-traj = data['y_trajectories']
-traj = np.transpose(traj, (1, 0, 2, 3))
+traj = data['y']
+
+# traj_path ='/home/davide/Scaricati/AGI test traj/batch_1.npz'
+# data = np.load(traj_path, allow_pickle=True)
+# traj = data['y_trajectories']
+# traj = np.transpose(traj, (1, 0, 2, 3))
 
 # 1. Media sui token per il centro di massa
 z_space = np.mean(traj, axis=2)
 
 # 2. Scegliamo un campione specifico
-sample_idx = 60 #60
-single_trajectory = z_space[sample_idx] # Shape: (16, 16)
+SAMPLE_IDX = 4 #60
+single_trajectory = z_space[SAMPLE_IDX] # Shape: (16, 16)
 
 # 3. Applichiamo la PCA per scendere a 3 dimensioni
 pca = PCA(n_components=3)
@@ -62,7 +62,7 @@ for axis, dim in zip([ax.set_xlim, ax.set_ylim, ax.set_zlim], [0, 1, 2]):
 cbar = fig.colorbar(sc, ax=ax, pad=0.1)
 cbar.set_label('Passo di Supervisione (Steps)', rotation=270, labelpad=15)
 
-ax.set_title(f'Traiettoria della Mente Latente 3D (Campione {sample_idx})', fontweight='bold', fontsize=12)
+ax.set_title(f'Traiettoria della Mente Latente 3D (Campione {SAMPLE_IDX})', fontweight='bold', fontsize=12)
 ax.set_xlabel('PC1', labelpad=10)
 ax.set_ylabel('PC2', labelpad=10)
 ax.set_zlabel('PC3', labelpad=10)
