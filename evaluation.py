@@ -207,7 +207,7 @@ if __name__ == '__main__':
         for i, W_slice in enumerate(matryoshka_sizes):
             is_last = (i == len(matryoshka_sizes) - 1) and N_sup == max(N_supervision_list)
 
-            print('Evaluating with W_slice =', W_slice)
+            print(f'Evaluating with N_sup = {N_sup} and W_slice = {W_slice}')
 
             results = evaluate(
                 model,

@@ -89,9 +89,10 @@ class TinyRecursiveModel(nn.Module):
     def latent_recursion(self, x, y, z):
         for _ in range(self.n):
             z = self.network(y + z + x)
-            self.track(z, "z")
         
         y = self.network(y + z)
+
+        self.track(z, "z")
         self.track(y, "y")
 
         return y, z

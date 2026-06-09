@@ -7,6 +7,8 @@
 \usepackage{overpic}
 \usepackage{amssymb}
 \usepackage{cuted}
+\usepackage{array}
+\usepackage{booktabs}
 \usepackage[accepted]{dlaiml2026}
 
 %%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
@@ -118,6 +120,53 @@ Regarding Suduku9x9 instead,  Hugging Face dataset has been used.
         \includegraphics[width=1\linewidth]{./figures/maze10x10_noMRL.png}
     \end{center}        
 \end{strip}
+
+
+
+\begin{strip}
+    \begin{center}
+        \footnotesize
+        \setlength{\tabcolsep}{5pt} % Spaziatura ottimizzata per le nuove colonne
+
+        % Totale colonne: 1 (Steps) + 6 (Maze 5x5) + 6 (Maze 10x10) + 4 (Sudoku 9x9) = 17 colonne
+        \begin{tabular}{c ccc c cccc c ccc c}
+        \toprule
+        \multicolumn{1}{c||}{} &
+        \multicolumn{4}{c}{\textbf{Maze 5x5}} &
+        \multicolumn{5}{c}{\textbf{Maze 10x10}} &
+        \multicolumn{4}{c}{\textbf{Sudoku 9x9}} \\
+        \cmidrule(lr){2-5} \cmidrule(lr){6-10} \cmidrule(lr){11-14}
+        \multicolumn{1}{c||}{\textbf{Steps}} &
+        \multicolumn{3}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} &
+        \multicolumn{4}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} &
+        \multicolumn{3}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} \\
+        \cmidrule(lr){2-4} \cmidrule(lr){5-5} \cmidrule(lr){6-9} \cmidrule(lr){10-10} \cmidrule(lr){11-13} \cmidrule(lr){14-14}
+        \multicolumn{1}{c||}{} & 4 & 8 & 16 & 16
+        & 4 & 8 & 16 & 32 & 32
+        & 4 & 8 & 16 & 16 \\
+        \midrule
+        \multicolumn{1}{c||}{1}  & 0.977 & 0.977 & 0.975 & 0.868
+        & 0.998 & 0.998 & 0.998 & 0.998 & 0.979
+        & 0.564 & 0.592 & 0.586 & 0.614 \\
+        \multicolumn{1}{c||}{2}  & 0.98  & 0.982 & 0.982 & 0.964
+        & 0.998 & 0.998 & 0.998 & 0.998 & 0.972
+        & 0.736 & 0.74  & 0.742 & 0.77  \\
+        \multicolumn{1}{c||}{4}  & 0.982 & 0.98  & 0.98  & 0.957
+        & 0.998 & 0.998 & 0.998 & 0.998 & 0.968
+        & 0.766 & 0.77  & 0.768 & 0.816 \\
+        \multicolumn{1}{c||}{8}  & 0.98  & 0.98  & 0.98  & 0.952
+        & 0.998 & 0.998 & 0.998 & 0.998 & 0.972
+        & 0.768 & 0.77  & 0.768 & 0.82  \\
+        \multicolumn{1}{c||}{16} & 0.986 & 0.988 & 0.988 & 0.952
+        & 0.998 & 0.998 & 0.998 & 0.998 & 0.966
+        & 0.768 & 0.774 & 0.774 & 0.822 \\
+        \bottomrule
+        \end{tabular}
+        \label{tab:mrl-comparison}
+    \end{center}        
+\end{strip}
+
+
 
 
 
