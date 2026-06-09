@@ -9,6 +9,7 @@ from model.trm import TinyRecursiveModel
 from torch.nn import functional as F
 from model.layers import TransformerBlock
 from pathlib import Path
+from collections import defaultdict
 from puzzle_datasets.puzzle_dataset import IGNORE_LABEL_ID
 
 
@@ -20,9 +21,10 @@ def evaluate(
     batch_size: int,
     device: torch.device,
     ignore_label_id: int,
-    max_recurrent_steps: int,
+    N_sup: int,
     W_slice: int | None = None,
-    enable_tracking: bool = False
+    enable_tracking: bool = False,
+    early_stopping_tau: float | None = None
 ) -> dict:
     model.eval()
 
@@ -34,7 +36,7 @@ def evaluate(
 
     z_trajectories = []
     y_trajectories = []
-    halt_trajectories = []
+    halted_at = []
 
     data_inputs = np.load(inputs_path, mmap_mode="r")
     data_labels = np.load(labels_path, mmap_mode="r")
@@ -55,13 +57,16 @@ def evaluate(
         if enable_tracking:
             model.enable_tracking()
 
-        logits = model.predict(dataset_input, max_recurrent_steps, W_slice)
+        if early_stopping_tau is not None and N_sup > 1:
+            logits, halt_steps = model.predict_with_early_stopping(dataset_input, N_sup, W_slice, early_stopping_tau)
+            halted_at.append(np.stack(halt_steps, axis=1)) # type: ignore
+        else:
+            logits = model.predict(dataset_input, N_sup, W_slice)
 
         if enable_tracking:
             z_trajectories.append(np.stack(model.trajectory["z"], axis=1)) # type: ignore
             y_trajectories.append(np.stack(model.trajectory["y"], axis=1)) # type: ignore
-            halt_trajectories.append(np.stack(model.trajectory["halt_logits"], axis=1)) # type: ignore
-
+        
         final_preds = logits.argmax(-1)  # (B, seq)
 
         mask = labels != IGNORE_LABEL_ID
@@ -86,10 +91,10 @@ def evaluate(
         "token_acc": correct_tokens / max(total_tokens, 1),
         "exact_match": exact_puzzles  / max(total_puzzles, 1),
         "trajectories": {
-            'z': np.concatenate(z_trajectories, axis=0),
-            'y': np.concatenate(y_trajectories, axis=0),
-            'halt_logits': np.concatenate(halt_trajectories, axis=0)
+            "z": np.concatenate(z_trajectories, axis=0),
+            "y": np.concatenate(y_trajectories, axis=0),
         } if enable_tracking else None,
+        "halted_at": np.concatenate(halted_at, axis=0) if halted_at else None
     }
 
 
@@ -109,8 +114,8 @@ def parse_args():
                         help="Path where to save results")
     parser.add_argument("--batch-size", type=int, default=16,
                         help="Batch size for the PuzzleDataset")
-    parser.add_argument("--max-recurrent-steps", type=int, default=12,
-                        help="Maximum number of recurrent steps during evaluation")
+    # parser.add_argument("--max-recurrent-steps", type=int, default=12,
+    #                     help="Maximum number of recurrent steps during evaluation")
     parser.add_argument("--T", type=int, default=3,
                         help="Number of high level iterations (T) (# times the model can re-process its own output)")
     parser.add_argument("--n", type=int, default=6,
@@ -133,7 +138,10 @@ def parse_args():
                         help="Enable Matryoshka evaluation from this size (inclusive) and then double to reach hidden size")
     parser.add_argument("--mlp-t", action="store_true",
                         help="Use MLP for temporal mixing instead of self-attention")
-    
+    parser.add_argument("--early-stopping-tau", type=float, default=None,
+                        help="Enable Early Stopping based on Acceleration with specified threshold (tau)")
+
+
     return parser.parse_args()
 
 
@@ -190,36 +198,40 @@ if __name__ == '__main__':
 
     results_path = Path(args.results_path)
     results_path.mkdir(parents=True, exist_ok=True)
+
+    N_supervision_list = [1, 2, 4, 8, 16]
     
-    output = []
-    
-    for i, W_slice in enumerate(matryoshka_sizes):
-        is_last = (i == len(matryoshka_sizes) - 1)
+    output = defaultdict(list)
 
-        print('Evaluating with W_slice =', W_slice)
+    for N_sup in N_supervision_list:
+        for i, W_slice in enumerate(matryoshka_sizes):
+            is_last = (i == len(matryoshka_sizes) - 1) and N_sup == max(N_supervision_list)
 
-        results = evaluate(
-            model,
-            inputs_path=Path(args.inputs_path),
-            labels_path=Path(args.labels_path),
-            batch_size=args.batch_size,
-            device=device,
-            ignore_label_id=metadata["ignore_label_id"],
-            max_recurrent_steps=args.max_recurrent_steps,
-            W_slice=W_slice,
-            enable_tracking=is_last
-        )
+            print('Evaluating with W_slice =', W_slice)
 
-        output.append({
-            "W_slice": W_slice,
-            "val_loss": f"{results['val_loss']:.4f}",
-            "token_acc": f"{results['token_acc']:.4f}",
-            "exact_match": f"{results['exact_match']:.4f}"
-        })
+            results = evaluate(
+                model,
+                inputs_path=Path(args.inputs_path),
+                labels_path=Path(args.labels_path),
+                batch_size=args.batch_size,
+                device=device,
+                ignore_label_id=metadata["ignore_label_id"],
+                N_sup=N_sup,
+                W_slice=W_slice,
+                enable_tracking=is_last,
+                early_stopping_tau=args.early_stopping_tau
+            )
 
-        # save directly last trajectories
-        if is_last:
-            np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
+            output[N_sup].append({
+                "W_slice": W_slice,
+                "val_loss": f"{results['val_loss']:.4f}",
+                "token_acc": f"{results['token_acc']:.4f}",
+                "exact_match": f"{results['exact_match']:.4f}"
+            })
+
+            # save directly last trajectories
+            if is_last:
+                np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
 
 
     with open(results_path / 'results.json', 'w') as f:

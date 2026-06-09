@@ -71,12 +71,12 @@ class TinyRecursiveModel(nn.Module):
 
     def enable_tracking(self):
         self.track_latents = True
-        self.trajectory = {"y": [], "z": [], "halt_logits": []}
+        self.trajectory = {"y": [], "z": []}
 
     def disable_tracking(self):
         self.track_latents = False
 
-    def track(self, tensor, latent_type: Literal["y", "z", "halt_logits"]):
+    def track(self, tensor, latent_type: Literal["y", "z"]):
         if self.track_latents:
             self.trajectory[latent_type].append(tensor.cpu().numpy()) # type: ignore
 
@@ -121,14 +121,8 @@ class TinyRecursiveModel(nn.Module):
         y = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
         z = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
     
-        Q_m = self.halt_head.weight[:, :W_slice]
-
         for _ in range(N_supervision):            
             y, z = self.forward(x, y, z)
-
-            if self.track_latents:
-                halt_logits = F.linear(y[:, 0, :W_slice], Q_m, self.halt_head.bias).squeeze(-1)
-                self.track(halt_logits, "halt_logits")
 
         W_m = self.prediction_head.weight[:, :W_slice]
 
@@ -136,6 +130,68 @@ class TinyRecursiveModel(nn.Module):
 
         return logits 
     
+
+    @torch.inference_mode()
+    def predict_with_early_stopping(
+        self,
+        inputs: torch.Tensor, 
+        N_supervision: int,
+        W_slice: int | None = None,
+        tau: float = 1e-3
+    ):
+        W_slice = W_slice or self.prediction_head.weight.shape[1]
+
+        x = self.embedding(inputs)
+        
+        y = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
+        z = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
+        
+        final_y = y.clone()
+
+        halt_steps = torch.full((x.shape[0], x.shape[1]), N_supervision, dtype=torch.long, device=x.device)
+
+        delta_prev = None
+        prev_small = torch.zeros(x.shape[0], x.shape[1], dtype=torch.bool, device=x.device)
+        
+        active_mask = torch.ones(x.shape[0], x.shape[1], dtype=torch.bool, device=x.device)
+
+        for k in range(N_supervision):
+            if not active_mask.any():
+                break
+
+            y_old = y.clone()
+            
+            y_next, z_next = self.forward(x, y, z)
+            
+            delta_cur = y_next - y_old
+            
+            if delta_prev is not None:
+                diff_delta = delta_cur - delta_prev
+                acc = torch.linalg.vector_norm(diff_delta, ord=2, dim=-1)
+                
+                small = acc < tau
+                
+                halt_condition = small & prev_small & active_mask
+                
+                if halt_condition.any():
+                    final_y = torch.where(halt_condition.unsqueeze(-1), y_old, final_y)
+                    
+                    halt_steps = torch.where(halt_condition, torch.tensor(k, dtype=torch.long, device=x.device), halt_steps)
+                    
+                    active_mask = active_mask & ~halt_condition
+                
+                prev_small = torch.where(active_mask, small, prev_small)
+
+            delta_prev = torch.where(active_mask.unsqueeze(-1), delta_cur, delta_prev if delta_prev is not None else delta_cur)
+            y = torch.where(active_mask.unsqueeze(-1), y_next, y)
+            z = torch.where(active_mask.unsqueeze(-1), z_next, z)
+
+        final_y = torch.where(active_mask.unsqueeze(-1), y, final_y)
+
+        W_m = self.prediction_head.weight[:, :W_slice]
+        logits = F.linear(final_y[:, self.num_registers:, :W_slice], W_m)
+
+        return logits, halt_steps
 
     # @torch.inference_mode()
     # def probabilistic_predict(

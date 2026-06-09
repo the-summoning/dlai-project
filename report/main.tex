@@ -10,13 +10,13 @@
 \usepackage[accepted]{dlaiml2026}
 
 %%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
-\dlaititlerunning{Analyzing and Accelerating Trajectories in Tiny Recursive Models}
+\dlaititlerunning{Analyzing reasoning latents in Tiny Recursive Models}
 
 \begin{document}
 
 \twocolumn[
 %%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
-\dlaititle{Analyzing and Accelerating Trajectories in Tiny Recursive Models}
+\dlaititle{Analyzing reasoning latents in Tiny Recursive Models}
 
 \begin{center}\today\end{center}
 
@@ -75,24 +75,37 @@ autoregressive Chain-of-Thought (CoT).
 \end{itemize}
 
 
-\paragraph{Our Contribution are:}
+\paragraph{The main contribution of this work are:}
 
 \begin{itemize}
-    \item We \textbf{implement from scratch TRM} and train it on manageable datasets: Maze5x5 and Maze10x10. For these smaller problems
-    peak performance are reached by using just one supervision step ($\texttt{N\_sup} = 1$).
-    \item We apply \textbf{Matryoshka Representation Learning}, studying if it collides with the \textit{deep supervision} used
-    inside the training loop and its effects.
-    \item \textbf{Geometric study} of TRM latent spaces, we empirically show that from a certain supervision step the
-    trajectory follows a predictable path, becoming smooth and less orthogonal.
-    \item Consequently, we assess the feaseability of early stopping on the complex benchmark ARC-AGI v1. We show that all supervision steps are
-    needed but they can be \textbf{accelerated} by combining PCA and Linear Regression.
+    \item We \textbf{implement successfully from scratch} the TRM architecture.
+    \item We study the \textbf{geometrics of both reasoning and solutions latents} ($y$ and $z$) by computing the first- and second-order metrics proposed
+    by \citet{latent-dynamics}. The step if performed on both trained models and ARC-AGI checkpoints.
+    \item We empirically demonstrate with \textbf{PCA} that latent trajectories follow a spiral pattern that smooths during the last steps.
+    \item We study the effect of \textbf{Matrioshka Representation Learning} imposed on the $y$, proving that it doesn't collide with the \textit{deep supervision}. 
+    \item We assess the feaseability of early stopping during inference based on \textbf{acceleration}.
 \end{itemize}
 
 
 % ------------------------------------------------------------------------------
 \section{Method}
 
-Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
+The TRM architecture has been implemented from scratch, using as guidelines the pseudocode of the corresponding paper and the implementation provided.
+As loss the standard Cross Entropy has been used, instead of the suggested Stable Max since it led to instability during training. Also the reduction of the loss
+itself is "mean" instead of "sum".
+To generate the Maze 5x5 and 10x10 datasets, the Python library \texttt{maze-dataset} \cite{maze-dataset} has been used with
+\texttt{Depth First Search} and \texttt{Wilson} as generators. After generated the data, each sample was augmented with 8 different dihetral transformations.
+Regarding Suduku 9x9, a \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{public} Hugging Face dataset was used. Approximately 10k samples were sampled
+for training, filtering the difficulty to be not greater than 2.
+
+Regarding the original TRM checkpoints of ARC-AGI, a minimal code was extracted from the original repository and as many as possible trajectories were collected
+paying attention to start from samples belonging to different puzzles to have a better representative space.
+
+Collected the trajectories for all the models we compute the geometric metrics and study the trajectory paths and Matryoshka Representation Learning effect on training.
+
+We finally assess the inference time of TRMs by studying the feasability of early stopping based on acceleration, showing the tradeoff between accuracy and speed.
+
+Regarding Suduku9x9 instead,  Hugging Face dataset has been used.
 
 
 % ------------------------------------------------------------------------------
@@ -116,8 +129,13 @@ Once you have finished your project, you are required to submit a report using t
 % ------------------------------------------------------------------------------
 \section{Future work}
 
-Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
-
+Several directions remain open for future exploration:
+A starting point will be simply analyzing on different and harder domains and check for \textbf{domain trasfer}. Is the reasoning acquired for Sudoku re-used for KenKen or Latin Square?
+\textbf{Prediction of trajectories} or autoregressive generation (trajectory $t$ at step $s+1$ given $t_{s+1}$) after reached the first $k$ steps could be indagated for accelerating
+inference time. This has been tested using a single Regressor after compressing the data with PCA but it didn't generalize.
+Probabilistic TRM is a "brute-force" quick extension which boosts performance while requiring many (deterministic) rollouts but it doesn't really make the architecture \textbf{probabilistic}.
+Tthe puzzle tasks used in this work tipically, to be well posed (especially Sudoku), requires exact one solution per sample. But in certain tasks
+different "paths" may be possible; throught a "temperature" parameter could be interesting to reach \textbf{different correct solutions}.
 
 
 \section{Statement on the use of AI}\label{sec:ai}
@@ -134,6 +152,12 @@ There is no strict length limit for this section, but in most cases one column o
 
 
 \section{Limitations}
+
+The main limitation for this work has been the complexity and heaviness of TRMs. While they are conceptually 'tiny',
+their recursive mechanisism during both training and inference makes them very hard to handle in limited eductional environment like
+Google Colab and Kaggle. The original authors of TRM released just checkpoints for the ARC-AGI tasks, making Suduku 9x9 Extreme
+and Maze 30x30 Hard not analyzable. It has been possible to store and study the trajectories of ARC-AGI checkpoints just for 256 samples.
+
 
 
 \bibliography{references.bib}

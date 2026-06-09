@@ -22,7 +22,7 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
 
 
 #traj = np.load('/home/davide/Documenti/DLAI project/maze10x10_noMRL/trajectories.npz', allow_pickle=True)['y']
-traj = load_batch_trajectories(Path('/home/davide/Scaricati/AGI test traj'))
+traj = load_batch_trajectories(Path('/home/davide/Scaricati/AGI2 train traj'))
 
 z_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
 samples, steps, hidden_size = z_space.shape

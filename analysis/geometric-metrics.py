@@ -541,6 +541,10 @@ if __name__ == "__main__":
         ("/home/davide/Documenti/DLAI project/maze5x5_withMRL", matrioshka_sizes(1, 16), "Maze 5x5 with MRL"),
         ("/home/davide/Documenti/DLAI project/maze10x10_noMRL", [32], "Maze 10x10"),
         ("/home/davide/Documenti/DLAI project/maze10x10_withMRL", matrioshka_sizes(2, 32), "Maze 10x10 with MRL"),
+        ("/home/davide/Documenti/DLAI project/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
+        ("/home/davide/Documenti/DLAI project/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
+        ("/home/davide/Documenti/DLAI project/sudoku9x9-attn_noMRL", [128], "Sudoku 9x9 (attention)"),
+        ("/home/davide/Documenti/DLAI project/sudoku9x9-attn_withMRL", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
     ]:
         path = Path(path)
         data = np.load(path / 'trajectories.npz', allow_pickle=True)
