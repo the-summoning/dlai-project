@@ -138,8 +138,8 @@ def parse_args():
                         help="Enable Matryoshka evaluation from this size (inclusive) and then double to reach hidden size")
     parser.add_argument("--mlp-t", action="store_true",
                         help="Use MLP for temporal mixing instead of self-attention")
-    parser.add_argument("--early-stopping-tau", type=float, default=None,
-                        help="Enable Early Stopping based on Acceleration with specified threshold (tau)")
+    parser.add_argument("--tau-values", type=float, nargs="+", default=None,
+                        help="Enable Early Stopping based on Acceleration with specified thresholds (tau)")
 
 
     return parser.parse_args()
@@ -199,7 +199,7 @@ if __name__ == '__main__':
     results_path = Path(args.results_path)
     results_path.mkdir(parents=True, exist_ok=True)
 
-    if args.early_stopping_tau:
+    if args.tau_values is not None and len(args.tau_values) > 0:
         TEST_EARLY_STOPPING_MODE = True
     else:
         TEST_EARLY_STOPPING_MODE = False
@@ -209,34 +209,36 @@ if __name__ == '__main__':
     if TEST_EARLY_STOPPING_MODE:
         output = defaultdict(list)
 
-        for i, W_slice in enumerate(matryoshka_sizes):
-            print(f'Evaluating Early Stopping with W_slice = {W_slice}')
+        for tau in args.tau_values:
+            for i, W_slice in enumerate(matryoshka_sizes):
+                print(f'Evaluating Early Stopping with W_slice = {W_slice}')
 
-            results = evaluate(
-                model,
-                inputs_path=Path(args.inputs_path),
-                labels_path=Path(args.labels_path),
-                batch_size=args.batch_size,
-                device=device,
-                ignore_label_id=metadata["ignore_label_id"],
-                N_sup=2, # all steps to early stop
-                W_slice=W_slice,
-                enable_tracking=False,
-                early_stopping_tau=args.early_stopping_tau
-            )
+                results = evaluate(
+                    model,
+                    inputs_path=Path(args.inputs_path),
+                    labels_path=Path(args.labels_path),
+                    batch_size=args.batch_size,
+                    device=device,
+                    ignore_label_id=metadata["ignore_label_id"],
+                    N_sup=max(N_supervision_list), # all steps to early stop
+                    W_slice=W_slice,
+                    enable_tracking=False,
+                    early_stopping_tau=tau
+                )
 
-            halted_at = results['halted_at']
+                halted_at = results['halted_at']
 
-            output[W_slice].append({
-                "W_slice": W_slice,
-                "val_loss": f"{results['val_loss']:.4f}",
-                "token_acc": f"{results['token_acc']:.4f}",
-                "exact_match": f"{results['exact_match']:.4f}"
-            })
+                output[W_slice].append({
+                    "W_slice": W_slice,
+                    "val_loss": f"{results['val_loss']:.4f}",
+                    "token_acc": f"{results['token_acc']:.4f}",
+                    "exact_match": f"{results['exact_match']:.4f}",
+                    "min_steps": halted_at.min().item(),
+                    "mean_steps": halted_at.mean().item(),
+                    "max_steps": halted_at.max().item()
+                })
 
-            print(f'Min steps: {halted_at.min()}, mean steps: {halted_at.mean()}, max steps: {halted_at.max()}')
-
-            np.savez(results_path / 'halted_at.npz', halted_at) # type: ignore
+                print(f'Min steps: {halted_at.min()}, mean steps: {halted_at.mean()}, max steps: {halted_at.max()}')
     else:
         output = defaultdict(list)
 

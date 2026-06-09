@@ -113,6 +113,19 @@ Regarding Suduku9x9 instead,  Hugging Face dataset has been used.
 % ------------------------------------------------------------------------------
 \section{Experimental results}
 
+RISPOSTA a valori dei PC piccoli nei sample trajectory
+il Transformer, durante i passi di loop, non sta stravolgendo il significato semantico del token (il che creerebbe balzi enormi da valori interi sul grafico), ma sta oscillando in un intorno infinitesimale per rifinire i dettagli della risposta (risolvere il Sudoku o trovare l'uscita del Maze).
+
+CON EARLY STOPPING CHE FUNZIONA, È POSSIBILE COMBINARLO CON PPTRM e velocizzare i 100 rollout
+
+
+Gli autori nel loro pseudocodice per l'Early Exit usano l'accelerazione pura/assoluta (Eq. 5). L'Equazione 6 (quella normata) viene citata nel testo come un "drop-in replacement" generico per mitigare riscalamenti globali tra blocchi diversi, ma se usata ciecamente per tracciare i grafici temporali produce esattamente l'effetto distorsivo che stai vedendo.
+
+Nel tuo grafico dell'accelerazione normata:All'inizio (passi viola, step 2-4), il modello compie grandi balzi (quello che il paper chiama large-scale drift). Sia il numeratore (il cambio di passo) che il denominatore (la grandezza dei passi) sono grandi, e il loro rapporto si stabilizza attorno a ~0.6 / 0.9.  Negli ultimi passi (passi verdi e gialli, step 10-15), il modello ha quasi raggiunto la soluzione e sta compiendo micro-correzioni infinitesimali (small-scale refinements). Geometricamente, la traiettoria sta curvando o spiraleggiando in un'area piccolissima.
+
+
+Quando i passi ($\Delta$) diventano microscopici, il denominatore dell'Equazione 6 ($||\Delta^{(k)}|| + ||\Delta^{(k-1)}||$) collassa rapidissimamente verso lo zero. Di conseguenza, anche se la variazione reale a numeratore è minuscola, dividerla per un numero quasi nullo fa schizzare il risultato verso l'alto (0.9).  Ecco perché l'accelerazione normata sembra alta: non perché il modello stia accelerando nello spazio, ma perché la formula amplifica enormemente le micro-oscillazioni locali quando la velocità assoluta rallenta.
+
 
 \begin{strip}
     \begin{center}
@@ -167,9 +180,6 @@ Regarding Suduku9x9 instead,  Hugging Face dataset has been used.
 \end{strip}
 
 
-
-
-
 % ------------------------------------------------------------------------------
 \section{Conclusions}
 
@@ -178,8 +188,11 @@ Once you have finished your project, you are required to submit a report using t
 % ------------------------------------------------------------------------------
 \section{Future work}
 
+TODO add token wise early stopping instead of average them
+
 Several directions remain open for future exploration:
-A starting point will be simply analyzing on different and harder domains and check for \textbf{domain trasfer}. Is the reasoning acquired for Sudoku re-used for KenKen or Latin Square?
+A starting point will be simply analyzing on different and harder domains and check for \textbf{domain trasfer}. Is the reasoning acquired for Sudoku re-used for KenKen or Latin Square? This question could be answered using
+using MRL to check how much of the reasoning space transfer.
 \textbf{Prediction of trajectories} or autoregressive generation (trajectory $t$ at step $s+1$ given $t_{s+1}$) after reached the first $k$ steps could be indagated for accelerating
 inference time. This has been tested using a single Regressor after compressing the data with PCA but it didn't generalize.
 Probabilistic TRM is a "brute-force" quick extension which boosts performance while requiring many (deterministic) rollouts but it doesn't really make the architecture \textbf{probabilistic}.

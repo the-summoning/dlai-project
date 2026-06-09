@@ -6,24 +6,21 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
-#   def compute_noise(self, z, halt_logits):
-
-#          self.noise_head = nn.Sequential(
-#             nn.Linear(hidden_size, hidden_size * 2),
-#             nn.GELU(),
-#             nn.Linear(hidden_size * 2, hidden_size)
-#         )
-#         q = halt_logits.sigmoid() 
-#         beta = 1.0 - q
-#         sigma = F.softplus(self.noise_head(z))
-#         eps = torch.randn_like(z)
-
-#         return beta.unsqueeze(-1) * sigma * eps
-
-
-# IMPARARE ZONA GAUSSIANA CORRETTA condizionata da input
-# z ~ p(z|x) = N(mu(x), sigma(x)) + regularization to keep reasons of same input nearby in latent space
-# then during inference I can control the spreadness and originality of the reason by moving a bit in the latent space and adding noise
+def compute_acceleration(y, y_prev, delta_prev, eps=1e-8):
+    delta_cur = y - y_prev  # [Batch, Hidden_Dim]
+    
+    if delta_prev is None:
+        return None, delta_cur
+        
+    diff = delta_cur - delta_prev  # [Batch, Hidden_Dim]
+    
+    acceleration = torch.norm(diff, p=2, dim=-1)
+    
+    norm_cur = torch.norm(delta_cur, p=2, dim=-1)
+    norm_prev = torch.norm(delta_prev, p=2, dim=-1)
+    acceleration = acceleration / (norm_cur + norm_prev + eps)
+    
+    return acceleration, delta_cur
 
 
 
@@ -100,7 +97,7 @@ class TinyRecursiveModel(nn.Module):
     def forward(self, x, y, z):
         with torch.no_grad():
             for _ in range(self.T - 1): # high level
-                y, z = self.latent_recursion(x, y, z)
+                y, z = self.64/4(x, y, z)
                 
         y, z = self.latent_recursion(x, y, z)
 
@@ -129,29 +126,32 @@ class TinyRecursiveModel(nn.Module):
         return logits 
     
 
+    # questa implementazione semplicemente scarta i risultati per i sample haltati
+    # a livello produttivo per batch size giganti invece conviene proprio rimuoverli i sample (dynamic batch)
     @torch.inference_mode()
     def predict_with_early_stopping(
         self,
         inputs: torch.Tensor, 
         N_supervision: int,
         W_slice: int | None = None,
-        tau: float = 1e-3
+        tau: float = 1e-2,
+        eps: float = 1e-8
     ):
         W_slice = W_slice or self.prediction_head.weight.shape[1]
 
         x = self.embedding(inputs)
+        batch_size = x.shape[0]
         
-        y = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
-        z = torch.zeros(x.shape[0], x.shape[1], self.hidden_size, device=x.device)
+        y = torch.zeros(batch_size, x.shape[1], self.hidden_size, device=x.device)
+        z = torch.zeros(batch_size, x.shape[1], self.hidden_size, device=x.device)
         
         final_y = y.clone()
-
-        halt_steps = torch.full((x.shape[0], x.shape[1]), N_supervision, dtype=torch.long, device=x.device)
+        
+        halt_steps = torch.full((batch_size,), N_supervision, dtype=torch.long, device=x.device)
 
         delta_prev = None
-        prev_small = torch.zeros(x.shape[0], x.shape[1], dtype=torch.bool, device=x.device)
-        
-        active_mask = torch.ones(x.shape[0], x.shape[1], dtype=torch.bool, device=x.device)
+        prev_small = torch.zeros(batch_size, dtype=torch.bool, device=x.device)
+        active_mask = torch.ones(batch_size, dtype=torch.bool, device=x.device)
 
         for k in range(N_supervision):
             if not active_mask.any():
@@ -164,27 +164,35 @@ class TinyRecursiveModel(nn.Module):
             delta_cur = y_next - y_old
             
             if delta_prev is not None:
-                diff_delta = delta_cur - delta_prev
-                acc = torch.linalg.vector_norm(diff_delta, ord=2, dim=-1)
+                diff_delta = delta_cur - delta_prev # [Batch, Seq_Len, Hidden_Dim]
                 
-                small = acc < tau
+                acc_norm = torch.linalg.vector_norm(diff_delta, ord=2, dim=(-2, -1))
+                norm_cur = torch.linalg.vector_norm(delta_cur, ord=2, dim=(-2, -1))
+                norm_prev = torch.linalg.vector_norm(delta_prev, ord=2, dim=(-2, -1))
+                
+                acceleration = acc_norm / (norm_cur + norm_prev + eps)
+                
+                small = acceleration < tau
                 
                 halt_condition = small & prev_small & active_mask
                 
                 if halt_condition.any():
-                    final_y = torch.where(halt_condition.unsqueeze(-1), y_old, final_y)
+                    mask_3d = halt_condition.unsqueeze(-1).unsqueeze(-1)
                     
-                    halt_steps = torch.where(halt_condition, torch.tensor(k, dtype=torch.long, device=x.device), halt_steps)
-                    
+                    final_y = torch.where(mask_3d, y_old, final_y)                    
+                    halt_steps = torch.where(halt_condition, torch.tensor(k, dtype=torch.long, device=x.device), halt_steps)                    
                     active_mask = active_mask & ~halt_condition
                 
                 prev_small = torch.where(active_mask, small, prev_small)
 
-            delta_prev = torch.where(active_mask.unsqueeze(-1), delta_cur, delta_prev if delta_prev is not None else delta_cur)
-            y = torch.where(active_mask.unsqueeze(-1), y_next, y)
-            z = torch.where(active_mask.unsqueeze(-1), z_next, z)
+            delta_prev = delta_cur.clone()
+            
+            mask_active_3d = active_mask.unsqueeze(-1).unsqueeze(-1)
+            y = torch.where(mask_active_3d, y_next, y)
+            z = torch.where(mask_active_3d, z_next, z)
 
-        final_y = torch.where(active_mask.unsqueeze(-1), y, final_y)
+        mask_final_3d = active_mask.unsqueeze(-1).unsqueeze(-1)
+        final_y = torch.where(mask_final_3d, y, final_y)
 
         W_m = self.prediction_head.weight[:, :W_slice]
         logits = F.linear(final_y[:, self.num_registers:, :W_slice], W_m)
