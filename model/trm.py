@@ -172,7 +172,7 @@ class TinyRecursiveModel(nn.Module):
                 
                 acceleration = acc_norm / (norm_cur + norm_prev + eps)
 
-                print(f'Step {step} -> mean acceleration {acceleration.mean(axis=0)::6f}')
+                print(f'Step {step} -> mean acceleration {acceleration.mean(axis=0):6f}')
                 
                 small = acceleration < tau
                 
