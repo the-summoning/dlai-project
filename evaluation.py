@@ -228,6 +228,8 @@ if __name__ == '__main__':
 
                 halted_at = results['halted_at']
 
+                halted_perc = ((halted_at < max(N_supervision_list)).sum() / halted_at.size) * 100
+
                 output[tau].append({
                     "W_slice": W_slice,
                     "val_loss": f"{results['val_loss']:.4f}",
@@ -236,7 +238,7 @@ if __name__ == '__main__':
                     "min_steps": halted_at.min().item(),
                     "mean_steps": halted_at.mean().item(),
                     "max_steps": halted_at.max().item(),
-                    "total_halted": (halted_at < max(N_supervision_list)).sum().item()
+                    "total_halted": f"{halted_perc:.2f}"
                 })
 
                 print(f'Min steps: {halted_at.min()}, mean steps: {halted_at.mean()}, max steps: {halted_at.max()}')
