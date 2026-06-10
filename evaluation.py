@@ -228,7 +228,7 @@ if __name__ == '__main__':
 
                 halted_at = results['halted_at']
 
-                output[W_slice].append({
+                output[tau].append({
                     "W_slice": W_slice,
                     "val_loss": f"{results['val_loss']:.4f}",
                     "token_acc": f"{results['token_acc']:.4f}",
