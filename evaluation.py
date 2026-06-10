@@ -235,7 +235,8 @@ if __name__ == '__main__':
                     "exact_match": f"{results['exact_match']:.4f}",
                     "min_steps": halted_at.min().item(),
                     "mean_steps": halted_at.mean().item(),
-                    "max_steps": halted_at.max().item()
+                    "max_steps": halted_at.max().item(),
+                    "total_halted": (halted_at < max(N_supervision_list)).sum().item()
                 })
 
                 print(f'Min steps: {halted_at.min()}, mean steps: {halted_at.mean()}, max steps: {halted_at.max()}')
@@ -265,7 +266,7 @@ if __name__ == '__main__':
                     "W_slice": W_slice,
                     "val_loss": f"{results['val_loss']:.4f}",
                     "token_acc": f"{results['token_acc']:.4f}",
-                    "exact_match": f"{results['exact_match']:.4f}"
+                    "exact_match": f"{results['exact_match']:.4f}",
                 })
 
                 # save directly last trajectories
