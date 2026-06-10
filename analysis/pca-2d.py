@@ -35,7 +35,7 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
 
 #traj = np.load('/home/davide/Documenti/DLAI project/maze5x5_withMRL/trajectories.npz', allow_pickle=True)['y']
 
-traj = load_batch_trajectories(Path('/home/davide/Scaricati/Maze30x30 train traj/'))
+traj = np.load('/home/davide/Documenti/DLAI project/results/maze10x10_noMRL/trajectories.npz', allow_pickle=True)['y']
 
 space = np.mean(traj, axis=2)  # (samples, steps, hidden)
 

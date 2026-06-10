@@ -58,8 +58,7 @@ def trajectory_with_MRL(
     traj: np.ndarray,
     dims_to_analyze: list[int],
     plot_path: Path,
-    x_label: str,
-    title: str,
+    x_label: str
 ):
     results = compute_metrics(traj, dims_to_analyze)
 
@@ -91,7 +90,7 @@ def trajectory_with_MRL(
             res["radial_mean"],
             linestyle="-",
             color=color,
-            linewidth=2,
+            linewidth=1,
             label=label,
         )
 
@@ -115,7 +114,7 @@ def trajectory_with_MRL(
             res["angular_mean"],
             linestyle="-",
             color=color,
-            linewidth=2,
+            linewidth=1,
             label=label,
         )
 
@@ -144,7 +143,7 @@ def trajectory_with_MRL(
             res["acc_mean"],
             linestyle="-",
             color=color,
-            linewidth=2,
+            linewidth=1,
             label=label,
         )
 
@@ -174,13 +173,6 @@ def trajectory_with_MRL(
     axes[2].grid(True, linestyle="--", alpha=0.4, which="both")
     axes[2].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
-    plt.suptitle(
-        title,
-        fontsize=13,
-        fontweight="bold",
-        y=1.02,
-    )
-
     plt.tight_layout()
 
     plot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -201,8 +193,7 @@ def both_trajectories(
     y_traj: np.ndarray,
     d: int,
     plot_path: Path,
-    x_label: str,
-    title: str,
+    x_label: str
 ):
     results_z = compute_metrics(z_traj, [d])
     results_y = compute_metrics(y_traj, [d])
@@ -244,7 +235,7 @@ def both_trajectories(
         res_z["radial_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=2,
+        linewidth=1,
         label=label_z,
     )
 
@@ -262,9 +253,9 @@ def both_trajectories(
     axes[0].plot(
         steps_radial_y,
         res_y["radial_mean"],
-        linestyle="--",
+        linestyle="-",
         color=color_y,
-        linewidth=1.5,
+        linewidth=1,
         label=label_y,
     )
 
@@ -284,7 +275,7 @@ def both_trajectories(
         res_z["angular_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=2,
+        linewidth=1,
         label=label_z,
     )
 
@@ -309,7 +300,7 @@ def both_trajectories(
         res_y["angular_mean"],
         linestyle="--",
         color=color_y,
-        linewidth=1.5,
+        linewidth=1,
         label=label_y,
     )
 
@@ -334,7 +325,7 @@ def both_trajectories(
         res_z["acc_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=2,
+        linewidth=1,
         label=label_z,
     )
 
@@ -354,7 +345,7 @@ def both_trajectories(
         res_y["acc_mean"],
         linestyle="--",
         color=color_y,
-        linewidth=1.5,
+        linewidth=1,
         label=label_y,
     )
 
@@ -384,13 +375,6 @@ def both_trajectories(
     axes[2].grid(True, linestyle="--", alpha=0.4, which="both")
     axes[2].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
-    plt.suptitle(
-        title,
-        fontsize=13,
-        fontweight="bold",
-        y=1.02,
-    )
-
     plt.tight_layout()
 
     plot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -406,11 +390,9 @@ def both_trajectories(
     return results_z, results_y
 
 
-
 def trajectory(
     traj: np.ndarray,
-    plot_path: Path,
-    title: str
+    plot_path: Path
 ):
     # y_traj shape attesa: (Samples, Steps, Hidden, ...) o simile, in base a compute_metrics
     steps = traj.shape[1]
@@ -435,7 +417,7 @@ def trajectory(
         linestyle='-',
         color=color,
         label=label,
-        linewidth=2
+        linewidth=1
     )
     axes[0].fill_between(
         steps_radial,
@@ -452,7 +434,7 @@ def trajectory(
         linestyle='-',
         color=color,
         label=label,
-        linewidth=2
+        linewidth=1
     )
     axes[1].fill_between(
         steps_acc_ang,
@@ -496,7 +478,6 @@ def trajectory(
     axes[2].grid(True, linestyle='--', alpha=0.4)
     axes[2].legend()
 
-    plt.suptitle(title, fontweight='bold')
     plt.tight_layout()
 
     plot_path.parent.mkdir(parents=True, exist_ok=True)
@@ -536,72 +517,83 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
 
 
 if __name__ == "__main__":
-    path = Path("/home/davide/Scrivania/prova_traj.npz")
-    data = np.load(path, allow_pickle=True)
+    # path = Path("/home/davide/Scrivania/prova_traj.npz")
+    # data = np.load(path, allow_pickle=True)
 
-    z_traj = data['z']
-    y_traj = data['y']
+    # z_traj = data['z']
+    # y_traj = data['y']
 
-    res_z, res_y = both_trajectories(
-        z_traj,
-        y_traj,
-        32,
-        plot_path=Path(f'./analysis/plots/{path.stem}.png'),
-        x_label="c",
-        title="title"
-    )
-    # for path, dims_to_analyze, title in [
-    #     ("/home/davide/Documenti/DLAI project/results/maze5x5_noMRL", [16], "Maze 5x5"),
-    #     ("/home/davide/Documenti/DLAI project/results/maze5x5_withMRL", matrioshka_sizes(4, 16), "Maze 5x5 with MRL"),
-    #     ("/home/davide/Documenti/DLAI project/results/maze10x10_noMRL", [32], "Maze 10x10"),
-    #     ("/home/davide/Documenti/DLAI project/results/maze10x10_withMRL", matrioshka_sizes(4, 32), "Maze 10x10 with MRL"),
-    #     ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
-    #     ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
-    #     # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_noMRL", [128], "Sudoku 9x9 (attention)"),
-    #     # ("/home/davide/Documenti/DLAI project/results/sudoku9x9-attn_withMRL", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
-    # ]:
-    #     path = Path(path)
-    #     data = np.load(path / 'trajectories.npz', allow_pickle=True)
+    # res_z, res_y = both_trajectories(
+    #     z_traj,
+    #     y_traj,
+    #     32,
+    #     plot_path=Path(f'./analysis/plots/{path.stem}.png'),
+    #     x_label="c",
+    #     title="title"
+    # )
+    for path, dims_to_analyze, title in [
+        ("/home/davide/Documenti/DLAI project/results/maze5x5_noMRL", [16], "Maze 5x5"),
+        ("/home/davide/Documenti/DLAI project/results/maze5x5_withMRL", matrioshka_sizes(4, 16), "Maze 5x5 with MRL"),
+        ("/home/davide/Documenti/DLAI project/results/maze10x10_noMRL", [32], "Maze 10x10"),
+        ("/home/davide/Documenti/DLAI project/results/maze10x10_withMRL", matrioshka_sizes(4, 32), "Maze 10x10 with MRL"),
+        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
+        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
+        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL_attention", [128], "Sudoku 9x9 (attention)"),
+        #("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL_attention", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
+    ]:
+        path = Path(path)
+        data = np.load(path / 'trajectories.npz', allow_pickle=True)
 
-    #     z_traj = data['z']
-    #     y_traj = data['y']
+        z_traj = data['z']
+        y_traj = data['y']
 
-    #     x_label = r"Step ($T \cdot n \cdot N_{\mathrm{sup}}$)" if y_traj.shape[0] > 8 else r"Step ($T$)"
+        idx = np.random.choice(z_traj.shape[0], size=100, replace=False)
 
-    #     if len(dims_to_analyze) > 1:
-    #         res = trajectory_with_MRL(
-    #             z_traj, 
-    #             dims_to_analyze, 
-    #             Path(f'./analysis/plots/{path.stem}-z_MRL.png'),
-    #             x_label, 
-    #             title + ' (z)'
-    #         )
+        z_traj = z_traj[idx]
+        y_traj = y_traj[idx]
+
+        x_label = r"Step ($T \cdot n \cdot N_{\mathrm{sup}}$)"
+
+        if len(dims_to_analyze) > 1:
+            # res = trajectory_with_MRL(
+            #     z_traj, 
+            #     dims_to_analyze, 
+            #     Path(f'./analysis/plots/{path.stem}-z_MRL.png'),
+            #     x_label, 
+            #     title + ' (z)'
+            # )
             
-    #         res = trajectory_with_MRL(
-    #             y_traj, 
-    #             dims_to_analyze, 
-    #             Path(f'./analysis/plots/{path.stem}-y_MRL.png'),
-    #             x_label, 
-    #             title + ' (y)'
-    #         )
+            res = trajectory_with_MRL(
+                y_traj, 
+                dims_to_analyze, 
+                Path(f'./analysis/plots/{path.stem}-y_MRL.png'),
+                x_label
+            )
     
-    #     else:
-    #         res_z, res_y = both_trajectories(
-    #             z_traj,
-    #             y_traj,
-    #             dims_to_analyze[0],
-    #             plot_path=Path(f'./analysis/plots/{path.stem}.png'),
-    #             x_label=x_label,
-    #             title=title
-    #         )
+        else:
+            res_z, res_y = both_trajectories(
+                z_traj,
+                y_traj,
+                dims_to_analyze[0],
+                plot_path=Path(f'./analysis/plots/{path.stem}.png'),
+                x_label=x_label
+            )
 
 
-    # generate_plots_for_y(
-    #     y_traj=load_batch_trajectories(
+    # trajectory(
+    #     traj=load_batch_trajectories(
     #         Path('/home/davide/Scaricati/AGI test traj/')
     #     ),
     #     plot_path=Path(f'./analysis/plots/arc-ag1_v1.png'),
     #     title="ARC-AGI v1",
+    # )
+
+    # trajectory(
+    #     traj=load_batch_trajectories(
+    #         Path('/home/davide/Scaricati/AGI2 test traj/')
+    #     ),
+    #     plot_path=Path(f'./analysis/plots/arc-ag1_v2.png'),
+    #     title="ARC-AGI v2",
     # )
 
     # generate_plots_for_y(

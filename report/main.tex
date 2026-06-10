@@ -9,16 +9,18 @@
 \usepackage{cuted}
 \usepackage{array}
 \usepackage{booktabs}
+\usepackage{caption}
+\usepackage[inline]{enumitem}
 \usepackage[accepted]{dlaiml2026}
 
 %%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
-\dlaititlerunning{Analyzing reasoning latents in Tiny Recursive Models}
+\dlaititlerunning{Latent Geometry and Efficient Inference in Tiny Recursive Models}
 
 \begin{document}
 
 \twocolumn[
 %%% STUDENTS: FILL IN WITH YOUR OWN INFORMATION
-\dlaititle{Analyzing reasoning latents in Tiny Recursive Models}
+\dlaititle{Latent Geometry and Efficient Inference in Tiny Recursive Models}
 
 \begin{center}\today\end{center}
 
@@ -36,79 +38,59 @@
 \printAffiliationsAndNotice{}
 
 \begin{abstract}
-%
 
-The Tiny Recursive Model (TRM) is a recursive architecture that solves reasoning
-problems that large LLMs struggle even to approach.Despite its success, the underlying geometric evolution of its hidden 
-states remains poorly understood. In this paper, we independently 
-implement TRM from scratch and investigate the structural behavior of 
-its latent reasoning ($z$) and prediction ($y$) trajectories by 
-computing first- and second-order geometric metrics. We find that in the initial execution steps,
-the trajectory updates exhibit a spiral-like behavior, which subsequently transitions into a 
-significantly smoother, predictable trajectory. As an extension, we 
-also analyze the impact of Matryoshka Representation Learning (MRL) on two synthetic small datasets.
-Finally, we address the inference  bottleneck of executing all supervision steps for complex tasks like ARC-AGI.
-Driven by the poor effectivness of early-stopping based on the first- and second-order metrics we 
-propose an application of PCA with regularized Ridge Regression which estimates final temporal 
-high-dimensional latents  by exploiting early-stage information.
+Tiny Recursive Model (TRM) is a recent recursive architecture that outperforms frontier LLMs on reasoning tasks.
+Despite being called "tiny", TRMs require many sequential steps to produce strong predictions on non-trivial problems.
+Furthermore, a recent extension sacrifices even more inference time by requiring dozens of parallel rollouts, differentiated by injected noise, in order to boost performance.
+At the same time, the geometric evolution of TRM hidden states remains largely unexplored.
+This work is twofold. First, it studies the geometry of the latent reasoning space of TRMs and investigates whether the dynamics previously observed in recurrent Transformer blocks also emerge in this setting.
+Second, it addresses the inference-time bottleneck by applying acceleration-based early stopping and evaluating its impact on efficiency and accuracy.
 
-%
 \end{abstract}
 
 
 % ------------------------------------------------------------------------------
 \section{Related Work}
 
-Our work is grounded in recent advancements in the field of latent recurrence as an efficient alternative to traditional 
-autoregressive Chain-of-Thought (CoT).
 
-\begin{itemize}
-    \item \textbf{Tiny Recursive Model (TRM):}
-    \citet{trm} simplifies the HRM biology-inspired architecture \cite {hrm} by iteratively processing hidden states through a \textit{single} 2-layer network with deep supervision.
-    %Despite its compact design, TRM solves complex puzzles using less than 0.01\% of the parameters required by frontier models.
+The work is grounded in recent advancements in latent reasoning architectures:
 
-    \item \textbf{Geometric Metrics and Acceleration-based Early Stopping:}
-    \citet{latent-dynamics} shows that inside recurrent-depth Transformers the internal representations evolve on two distinct scales, fine-grained local refinements and a larger-scale drift.
-    They track first- and second-order metrics and they introduce an early-exit mechanism based on \textit{acceleration}.
+\begin{enumerate*}[label=(\roman*)]
 
-    \item \textbf{Probabilistc TRM (PTRM):}
-    \citet{ptrm} proposes a simple yet expensive training-free extension which injects gaussian noise during recursion.
-    Although PTRM leads to great accuracy gains, it severely sacrifices time inference, requiring up to 100 parallel rollouts per each sample.
-\end{itemize}
+\item \textbf{Tiny Recursive Model (TRM):}
+\citet{trm} simplifies the biology-inspired HRM architecture \cite{hrm} by iteratively processing hidden states through a \textit{single} 2-layer Transformer with deep supervision.
 
+\item \textbf{Geometric metrics and early stopping:}
+\citet{latent-dynamics} show that internal representations within recurrent Transformer blocks evolve through a combination of fine-grained local refinements and larger-scale drift. They introduce first- and second-order geometric metrics and propose an early-exit mechanism based on \textit{acceleration}.
 
-\paragraph{The main contribution of this work are:}
+\item \textbf{Probabilistic TRM (PTRM):}
+\citet{ptrm} propose a simple yet computationally expensive training-free extension that injects Gaussian noise during recursion. Although PTRM achieves substantial accuracy gains, it significantly increases inference costs by requiring up to 100 parallel rollouts per sample.
 
-\begin{itemize}
-    \item We \textbf{implement successfully from scratch} the TRM architecture.
-    \item We study the \textbf{geometrics of both reasoning and solutions latents} ($y$ and $z$) by computing the first- and second-order metrics proposed
-    by \citet{latent-dynamics}. The step if performed on both trained models and ARC-AGI checkpoints.
-    \item We empirically demonstrate with \textbf{PCA} that latent trajectories follow a spiral pattern that smooths during the last steps.
-    \item We study the effect of \textbf{Matrioshka Representation Learning} imposed on the $y$, proving that it doesn't collide with the \textit{deep supervision}. 
-    \item We assess the feaseability of early stopping during inference based on \textbf{acceleration}.
-\end{itemize}
+\end{enumerate*}
+
+The \textbf{main contributions} of this work are:
+
+\begin{enumerate*}[label=(\roman*)]
+
+\item a modular \textbf{implementation from scratch of the TRM architecture} (both MLP-Mixer and Attention variant),
+
+\item a study of the \textbf{geometry of both reasoning and solution latents} ($y$ and $z$), including the computation of first- and second-order geometric metrics,
+
+\item the application of \textbf{acceleration-based early stopping} to reduce inference time,
+
+\item an experimental investigation of \textbf{Matryoshka Representation Learning} imposed on $y$, providing evidence that it is compatible with the deep supervision mechanism.
+
+\end{enumerate*}
 
 
 % ------------------------------------------------------------------------------
 \section{Method}
 
-The TRM architecture has been implemented from scratch, using as guidelines the pseudocode of the corresponding paper and the implementation provided.
-As loss the standard Cross Entropy has been used, instead of the suggested Stable Max since it led to instability during training. Also the reduction of the loss
-itself is "mean" instead of "sum".
-To generate the Maze 5x5 and 10x10 datasets, the Python library \texttt{maze-dataset} \cite{maze-dataset} has been used with
-\texttt{Depth First Search} and \texttt{Wilson} as generators. After generated the data, each sample was augmented with 8 different dihetral transformations.
-Regarding Suduku 9x9, a \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{public} Hugging Face dataset was used. Approximately 10k samples were sampled
-for training, filtering the difficulty to be not greater than 2.
-
-Regarding the original TRM checkpoints of ARC-AGI, a minimal code was extracted from the original repository and as many as possible trajectories were collected
-paying attention to start from samples belonging to different puzzles to have a better representative space.
-
-Collected the trajectories for all the models we compute the geometric metrics and study the trajectory paths and Matryoshka Representation Learning effect on training.
-
-We finally assess the inference time of TRMs by studying the feasability of early stopping based on acceleration, showing the tradeoff between accuracy and speed.
-
-Regarding Suduku9x9 instead,  Hugging Face dataset has been used.
-
+For the TRM implementation, a 2-layer Transformer is used as the internal network. In all experiments, $N_{\text{sup}} = 16$, $T = 4$, and $n = 8$.
+Synthetic Maze 5$\times$5, Maze 10$\times$10 (generated using the \texttt{maze-dataset} \cite{maze-dataset} library), and Sudoku 9$\times$9 datasets were employed to ensure computational tractability. For Sudoku, 10k puzzles with difficulty $\leq 2$ were sampled from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this public dataset}.
+The TRM was trained both with and without \textbf{Matryoshka Representation Learning} \cite{mrl} to assess whether hierarchical structuring of latent solution representations is compatible with the deep supervision mechanism.
+For the geometric analysis of latent trajectories, the principal metrics introduced in \cite{latent-dynamics} were computed. The trained model was evaluated and the resulting latent trajectories were recorded for direct inspection of the internal computation process. Additional trajectories were collected from the original TRM using publicly available checkpoints on the ARC-AGI 1 and ARC-AGI 2 benchmarks.
+Finally, TRM was extended with an acceleration-based early stopping criterion. The objective is to achieve approximately the same accuracy obtained using all supervision steps ($N_{\text{sup}} = 16$) while reducing the average number of recursive iterations required during inference.
 
 % ------------------------------------------------------------------------------
 \section{Experimental results}
@@ -127,56 +109,90 @@ Nel tuo grafico dell'accelerazione normata:All'inizio (passi viola, step 2-4), i
 Quando i passi ($\Delta$) diventano microscopici, il denominatore dell'Equazione 6 ($||\Delta^{(k)}|| + ||\Delta^{(k-1)}||$) collassa rapidissimamente verso lo zero. Di conseguenza, anche se la variazione reale a numeratore è minuscola, dividerla per un numero quasi nullo fa schizzare il risultato verso l'alto (0.9).  Ecco perché l'accelerazione normata sembra alta: non perché il modello stia accelerando nello spazio, ma perché la formula amplifica enormemente le micro-oscillazioni locali quando la velocità assoluta rallenta.
 
 
+% \begin{strip}
+%     \begin{center}
+
+%     \captionof{figure}{Sudoku 9x9: attention metrics}
+%     \label{fig:sudoku_attn}
+
+%     \includegraphics[width=0.99\linewidth]{./figures/sudoku9x9_noMRL_attention.png}
+
+%     \end{center}
+% \end{strip}
+
+
+\begin{figure}[htbp]
+    \centering
+    \includegraphics[width=1\linewidth]{./figures/sudoku9x9_trajectory.png}
+    \caption{Reasoning $y$ trajectory for a Sudoku 9x9 sample.}
+    \label{fig:sample-traj}
+\end{figure}
+
+
 \begin{strip}
-    \begin{center}
-        \includegraphics[width=1\linewidth]{./figures/arc-ag1_v1.png}
-        \includegraphics[width=1\linewidth]{./figures/maze10x10_noMRL.png}
-    \end{center}        
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+    \captionof{table}{
+        Exact accuracy achieved across datasets for both MRL and no MRL variants. "(attn)" means that attention instead of MLP-Mixing was used.
+        The number below "no MRL" represent the full hidden size used for prediction.
+    }
+    \label{tab:eval-results}
+    \begin{tabular}{ccccccccccccccccc}
+    \toprule
+    \multicolumn{4}{c}{\textbf{Maze 5x5}} &
+    \multicolumn{5}{c}{\textbf{Maze 10x10}} &
+    \multicolumn{4}{c}{\textbf{Sudoku 9x9}} &
+    \multicolumn{4}{c}{\textbf{Sudoku 9x9 (attn)}} \\
+    \cmidrule(lr){1-4}
+    \cmidrule(lr){5-9}
+    \cmidrule(lr){10-13}
+    \cmidrule(lr){14-17}
+    \multicolumn{3}{c}{MRL} & \multicolumn{1}{c}{no MRL} &
+    \multicolumn{4}{c}{MRL} & \multicolumn{1}{c}{no MRL} &
+    \multicolumn{3}{c}{MRL} & \multicolumn{1}{c}{no MRL} &
+    \multicolumn{3}{c}{MRL} & \multicolumn{1}{c}{no MRL} \\
+    \cmidrule(lr){1-3} \cmidrule(lr){4-4}
+    \cmidrule(lr){5-8} \cmidrule(lr){9-9}
+    \cmidrule(lr){10-12} \cmidrule(lr){13-13}
+    \cmidrule(lr){14-16} \cmidrule(lr){17-17}
+    4 & 8 & 16 & 16 & 4 & 8 & 16 & 32 & 32 & 4 & 8 & 16 & 16 & 4 & 8 & 16 & 16\\
+    \midrule
+    0.98 & 0.98 & 0.98 & 0.95 &
+    0.99 & 0.99 & 0.99 & 0.99 & 0.96 &
+    0.76 & 0.77 & 0.77 & 0.82 &
+    0 & 0 & 0 & 0 \\
+    \bottomrule
+    \end{tabular}
+
+\end{center}
 \end{strip}
 
 
-
 \begin{strip}
-    \begin{center}
-        \footnotesize
-        \setlength{\tabcolsep}{5pt} % Spaziatura ottimizzata per le nuove colonne
-
-        % Totale colonne: 1 (Steps) + 6 (Maze 5x5) + 6 (Maze 10x10) + 4 (Sudoku 9x9) = 17 colonne
-        \begin{tabular}{c ccc c cccc c ccc c}
-        \toprule
-        \multicolumn{1}{c||}{} &
-        \multicolumn{4}{c}{\textbf{Maze 5x5}} &
-        \multicolumn{5}{c}{\textbf{Maze 10x10}} &
-        \multicolumn{4}{c}{\textbf{Sudoku 9x9}} \\
-        \cmidrule(lr){2-5} \cmidrule(lr){6-10} \cmidrule(lr){11-14}
-        \multicolumn{1}{c||}{\textbf{Steps}} &
-        \multicolumn{3}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} &
-        \multicolumn{4}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} &
-        \multicolumn{3}{c}{MRL dim} & \multicolumn{1}{c}{no MRL} \\
-        \cmidrule(lr){2-4} \cmidrule(lr){5-5} \cmidrule(lr){6-9} \cmidrule(lr){10-10} \cmidrule(lr){11-13} \cmidrule(lr){14-14}
-        \multicolumn{1}{c||}{} & 4 & 8 & 16 & 16
-        & 4 & 8 & 16 & 32 & 32
-        & 4 & 8 & 16 & 16 \\
-        \midrule
-        \multicolumn{1}{c||}{1}  & 0.977 & 0.977 & 0.975 & 0.868
-        & 0.998 & 0.998 & 0.998 & 0.998 & 0.979
-        & 0.564 & 0.592 & 0.586 & 0.614 \\
-        \multicolumn{1}{c||}{2}  & 0.98  & 0.982 & 0.982 & 0.964
-        & 0.998 & 0.998 & 0.998 & 0.998 & 0.972
-        & 0.736 & 0.74  & 0.742 & 0.77  \\
-        \multicolumn{1}{c||}{4}  & 0.982 & 0.98  & 0.98  & 0.957
-        & 0.998 & 0.998 & 0.998 & 0.998 & 0.968
-        & 0.766 & 0.77  & 0.768 & 0.816 \\
-        \multicolumn{1}{c||}{8}  & 0.98  & 0.98  & 0.98  & 0.952
-        & 0.998 & 0.998 & 0.998 & 0.998 & 0.972
-        & 0.768 & 0.77  & 0.768 & 0.82  \\
-        \multicolumn{1}{c||}{16} & 0.986 & 0.988 & 0.988 & 0.952
-        & 0.998 & 0.998 & 0.998 & 0.998 & 0.966
-        & 0.768 & 0.774 & 0.774 & 0.822 \\
-        \bottomrule
-        \end{tabular}
-        \label{tab:mrl-comparison}
-    \end{center}        
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+    \captionof{table}{Performance of trained TRMs early stopping is both enabled.}
+    \label{tab:ea-results}
+    \begin{tabular}{l ccc ccc ccc}
+    \toprule
+    & \multicolumn{3}{c}{$\tau = 0.5$}
+    & \multicolumn{3}{c}{$\tau = 0.8$}
+    & \multicolumn{3}{c}{$\tau = 1.0$} \\
+    \cmidrule(lr){2-4} \cmidrule(lr){5-7} \cmidrule(lr){8-10}
+    \textbf{Dataset}
+    & Accuracy & Halted (\%) & Avg steps
+    & Accuracy & Halted (\%) & Avg steps
+    & Accuracy & Halted (\%) & Avg steps \\
+    \midrule
+    Maze 5x5        & & & & & & & & & \\
+    Maze 10x10      & & & & & & & & & \\
+    Sudoku 9x9      & & & & & & & & & \\
+    Sudoku 9x9 (attn) & & & & & & & & & \\
+    \bottomrule
+    \end{tabular}
+\end{center}
 \end{strip}
 
 
@@ -187,6 +203,10 @@ Once you have finished your project, you are required to submit a report using t
 
 % ------------------------------------------------------------------------------
 \section{Future work}
+Altought the decoder-only model
+    they studied used recursion in different ways
+
+    
 
 TODO add token wise early stopping instead of average them
 

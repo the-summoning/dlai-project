@@ -21,14 +21,19 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
     return y_all_trajectories
 
 
-#traj = np.load('/home/davide/Documenti/DLAI project/maze10x10_noMRL/trajectories.npz', allow_pickle=True)['y']
 traj = load_batch_trajectories(Path('/home/davide/Scaricati/AGI2 train traj'))
 
-z_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
-samples, steps, hidden_size = z_space.shape
+
+# traj = np.load('/home/davide/Documenti/DLAI project/results/maze5x5_withMRL/trajectories.npz', allow_pickle=True)['y']
+idx = np.random.choice(traj.shape[0], size=250, replace=False)
+traj = traj[idx]
+
+
+y_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
+samples, steps, hidden_size = y_space.shape
 
 # PCA globale a 3 componenti
-z_all_points = z_space.reshape(-1, hidden_size)
+z_all_points = y_space.reshape(-1, hidden_size)
 pca_3d = PCA(n_components=3)
 points_3d = pca_3d.fit_transform(z_all_points)
 traj_all_3d = points_3d.reshape(samples, steps, 3)
