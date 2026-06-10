@@ -197,7 +197,7 @@ class TinyRecursiveModel(nn.Module):
         W_m = self.prediction_head.weight[:, :W_slice]
         logits = F.linear(final_y[:, self.num_registers:, :W_slice], W_m)
 
-        return logits, halt_steps
+        return logits, halt_steps.cpu()
 
     # @torch.inference_mode()
     # def probabilistic_predict(
