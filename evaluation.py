@@ -273,8 +273,7 @@ if __name__ == '__main__':
                     np.savez(results_path / 'trajectories.npz', **results['trajectories']) # type: ignore
 
 
-        with open(results_path / 'results.json', 'w') as f:
-            json.dump(output, f, indent=4)
-
+    with open(results_path / 'results.json', 'w') as f:
+        json.dump(output, f, indent=4)
 
     print('Results saved at ', results_path)
