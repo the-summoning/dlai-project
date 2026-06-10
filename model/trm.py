@@ -97,7 +97,7 @@ class TinyRecursiveModel(nn.Module):
     def forward(self, x, y, z):
         with torch.no_grad():
             for _ in range(self.T - 1): # high level
-                y, z = self.64/4(x, y, z)
+                y, z = self.latent_recursion(x, y, z)
                 
         y, z = self.latent_recursion(x, y, z)
 
