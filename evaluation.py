@@ -59,7 +59,7 @@ def evaluate(
 
         if early_stopping_tau is not None and N_sup > 1:
             logits, halt_steps = model.predict_with_early_stopping(dataset_input, N_sup, W_slice, early_stopping_tau)
-            halted_at.append(np.stack(halt_steps, axis=1)) # type: ignore
+            halted_at.append(np.stack(halt_steps, axis=0)) # type: ignore
         else:
             logits = model.predict(dataset_input, N_sup, W_slice)
 
