@@ -161,8 +161,9 @@ class TinyRecursiveModel(nn.Module):
             
             y_next, z_next = self.forward(x, y, z)
             
-            delta_cur = y_next - y_old
-            
+            #delta_cur = y_next - y_old
+            delta_cur = y_next[..., :W_slice] - y_old[..., :W_slice] # NOTE calcolo l'accelerazione solo usando le prime W_slice dim
+
             if delta_prev is not None:
                 diff_delta = delta_cur - delta_prev # [Batch, Seq_Len, Hidden_Dim]
                 
