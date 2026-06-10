@@ -211,7 +211,7 @@ if __name__ == '__main__':
 
         for tau in args.tau_values:
             for i, W_slice in enumerate(matryoshka_sizes):
-                print(f'Evaluating Early Stopping with W_slice = {W_slice}')
+                print(f'Evaluating Early Stopping with tau = {tau} and W_slice = {W_slice}')
 
                 results = evaluate(
                     model,

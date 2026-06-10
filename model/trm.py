@@ -153,7 +153,7 @@ class TinyRecursiveModel(nn.Module):
         prev_small = torch.zeros(batch_size, dtype=torch.bool, device=x.device)
         active_mask = torch.ones(batch_size, dtype=torch.bool, device=x.device)
 
-        for k in range(N_supervision):
+        for step in range(N_supervision):
             if not active_mask.any():
                 break
 
@@ -171,6 +171,8 @@ class TinyRecursiveModel(nn.Module):
                 norm_prev = torch.linalg.vector_norm(delta_prev, ord=2, dim=(-2, -1))
                 
                 acceleration = acc_norm / (norm_cur + norm_prev + eps)
+
+                print(f'Step {step} -> mean acceleration {acceleration.mean(axis=0)::6f}')
                 
                 small = acceleration < tau
                 
@@ -180,7 +182,7 @@ class TinyRecursiveModel(nn.Module):
                     mask_3d = halt_condition.unsqueeze(-1).unsqueeze(-1)
                     
                     final_y = torch.where(mask_3d, y_old, final_y)                    
-                    halt_steps = torch.where(halt_condition, torch.tensor(k, dtype=torch.long, device=x.device), halt_steps)                    
+                    halt_steps = torch.where(halt_condition, torch.tensor(step, dtype=torch.long, device=x.device), halt_steps)                    
                     active_mask = active_mask & ~halt_condition
                 
                 prev_small = torch.where(active_mask, small, prev_small)
