@@ -21,61 +21,74 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
     return y_all_trajectories
 
 
-traj = load_batch_trajectories(Path('/home/davide/Scaricati/AGI2 train traj'))
+def gen_plot(load_path: Path, save_path: Path, load_batches: bool =  False):
+    if load_batches:
+        traj = load_batch_trajectories(load_path)
+    else:
+        traj = np.load(load_path, allow_pickle=True)['y']
+    
+    idx = np.random.choice(traj.shape[0], size=250, replace=False)
+    traj = traj[idx][:, :16, :, :]
 
 
-# traj = np.load('/home/davide/Documenti/DLAI project/results/maze5x5_withMRL/trajectories.npz', allow_pickle=True)['y']
-idx = np.random.choice(traj.shape[0], size=250, replace=False)
-traj = traj[idx]
+    y_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
+    samples, steps, hidden_size = y_space.shape
+
+    # PCA globale a 3 componenti
+    z_all_points = y_space.reshape(-1, hidden_size)
+    pca_3d = PCA(n_components=3)
+    points_3d = pca_3d.fit_transform(z_all_points)
+    traj_all_3d = points_3d.reshape(samples, steps, 3)
+
+    # Colormap: viola→giallo lungo gli step
+    cmap = plt.cm.plasma # type: ignore
+    colors = cmap(np.linspace(0, 1, steps))  # (steps, 4) RGBA
+
+    fig = plt.figure(figsize=(12, 9))
+    ax = fig.add_subplot(111, projection='3d')
+
+    # Linee colorate per step
+    for i in range(samples):
+        for t in range(steps - 1):
+            ax.plot(
+                traj_all_3d[i, t:t+2, 0],
+                traj_all_3d[i, t:t+2, 1],
+                traj_all_3d[i, t:t+2, 2],
+                color=colors[t],
+                alpha=0.06,
+                linewidth=0.8
+            )
+
+    # Punti inizio e fine
+    ax.scatter(traj_all_3d[:, 0, 0],  traj_all_3d[:, 0, 1],  traj_all_3d[:, 0, 2], # type: ignore
+            color=colors[0],  alpha=0.5, s=12, label='First step', zorder=5)
+    ax.scatter(traj_all_3d[:, -1, 0], traj_all_3d[:, -1, 1], traj_all_3d[:, -1, 2], # pyright: ignore[reportArgumentType]
+            color=colors[-1], alpha=0.7, s=12, label=f'Last step', zorder=5)
+
+    # Colorbar manuale per la progressione temporale
+    sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=steps-1)) # type: ignore
+    sm.set_array([])
+    cbar = fig.colorbar(sm, ax=ax, pad=0.1, shrink=0.6)
+    cbar.set_label('Supervision step', fontweight='bold')
+
+    #ax.set_title('Spazio Latente Globale 3D: Lo sciame verso l\'attrattore', fontweight='bold')
+    ax.set_xlabel('PC1', fontweight='bold')
+    ax.set_ylabel('PC2', fontweight='bold')
+    ax.set_zlabel('PC3', fontweight='bold')
+    ax.legend(loc='upper left', fontsize=8)
+    ax.view_init(elev=20, azim=45)
+
+    plt.tight_layout()
+    plt.savefig(save_path, dpi=300, bbox_inches='tight')
+    plt.close()
 
 
-y_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
-samples, steps, hidden_size = y_space.shape
+if __name__ == '__main__':
+    out_dir = Path('./analysis/pca3d')
 
-# PCA globale a 3 componenti
-z_all_points = y_space.reshape(-1, hidden_size)
-pca_3d = PCA(n_components=3)
-points_3d = pca_3d.fit_transform(z_all_points)
-traj_all_3d = points_3d.reshape(samples, steps, 3)
+    out_dir.mkdir(parents=True, exist_ok=True)
 
-# Colormap: viola→giallo lungo gli step
-cmap = plt.cm.plasma
-colors = cmap(np.linspace(0, 1, steps))  # (steps, 4) RGBA
-
-fig = plt.figure(figsize=(12, 9))
-ax = fig.add_subplot(111, projection='3d')
-
-# Linee colorate per step
-for i in range(samples):
-    for t in range(steps - 1):
-        ax.plot(
-            traj_all_3d[i, t:t+2, 0],
-            traj_all_3d[i, t:t+2, 1],
-            traj_all_3d[i, t:t+2, 2],
-            color=colors[t],
-            alpha=0.06,
-            linewidth=0.8
-        )
-
-# Punti inizio e fine
-ax.scatter(traj_all_3d[:, 0, 0],  traj_all_3d[:, 0, 1],  traj_all_3d[:, 0, 2],
-           color=colors[0],  alpha=0.5, s=12, label='Passo 0 (inizio)', zorder=5)
-ax.scatter(traj_all_3d[:, -1, 0], traj_all_3d[:, -1, 1], traj_all_3d[:, -1, 2],
-           color=colors[-1], alpha=0.7, s=12, label=f'Passo {steps-1} (fine)', zorder=5)
-
-# Colorbar manuale per la progressione temporale
-sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=steps-1))
-sm.set_array([])
-cbar = fig.colorbar(sm, ax=ax, pad=0.1, shrink=0.6)
-cbar.set_label('Supervision step', fontweight='bold')
-
-ax.set_title('Spazio Latente Globale 3D: Lo sciame verso l\'attrattore', fontweight='bold')
-ax.set_xlabel('PC1', fontweight='bold')
-ax.set_ylabel('PC2', fontweight='bold')
-ax.set_zlabel('PC3', fontweight='bold')
-ax.legend(loc='upper left', fontsize=8)
-ax.view_init(elev=20, azim=45)
-
-plt.tight_layout()
-plt.savefig('latent_trajectory_3d.png', dpi=150, bbox_inches='tight')
-plt.show()
+    gen_plot(Path('/home/davide/Scaricati/AGI test traj'), out_dir / 'agi.png', True)
+    gen_plot(Path('/home/davide/Scaricati/AGI2 test traj'), out_dir / 'agi2.png', True)
+    gen_plot(Path('/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL_attention/trajectories.npz'), out_dir / 'sudoku9x9.png', False)
+    gen_plot(Path('/home/davide/Documenti/DLAI project/results/maze5x5_noMRL/trajectories.npz'), out_dir / 'maze5x5.png', False)

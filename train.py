@@ -144,7 +144,7 @@ def train(
     best_exact_match = -1.0
     patience_counter = 0
 
-    # ── Resume from checkpoint
+    # Resume from checkpoint
     if resume_from_checkpoint is not None and resume_from_checkpoint.exists():
         print(f"Resuming from {resume_from_checkpoint}")
         ckpt = torch.load(resume_from_checkpoint, map_location=device)
@@ -274,7 +274,6 @@ def train(
                 f"exact_match={metrics['exact_match']:.4f}"
             )
 
-            # ── Checkpoint + Early stopping
             if metrics["exact_match"] > best_exact_match:
                 best_exact_match = metrics["exact_match"]
                 patience_counter = 0
@@ -412,7 +411,7 @@ if __name__ == "__main__":
         ignore_label_id=metadata["ignore_label_id"]
     )    
 
-    num_registers = args.registers # just CLS token, used to halt
+    num_registers = args.registers
     
     print(f"Vocab size: {vocab_size}, Seq len: {seq_len}")
     print(f"Train dataset: {args.train_inputs_path}")

@@ -1,26 +1,8 @@
 from typing import Literal
 
-import numpy as np
 import torch
 import torch.nn as nn
 from torch.nn import functional as F
-
-
-def compute_acceleration(y, y_prev, delta_prev, eps=1e-8):
-    delta_cur = y - y_prev  # [Batch, Hidden_Dim]
-    
-    if delta_prev is None:
-        return None, delta_cur
-        
-    diff = delta_cur - delta_prev  # [Batch, Hidden_Dim]
-    
-    acceleration = torch.norm(diff, p=2, dim=-1)
-    
-    norm_cur = torch.norm(delta_cur, p=2, dim=-1)
-    norm_prev = torch.norm(delta_prev, p=2, dim=-1)
-    acceleration = acceleration / (norm_cur + norm_prev + eps)
-    
-    return acceleration, delta_cur
 
 
 

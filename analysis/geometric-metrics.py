@@ -30,7 +30,8 @@ def compute_metrics(traj: np.ndarray, W_slices: list[int]):
         norm_prev = np.linalg.norm(d_prev, ord=2, axis=-1)
         
         # (Samples, Steps-2, Seq_len)
-        angular_tokens = dot_product / (norm_curr * norm_prev + 1e-8)
+        #angular_tokens = dot_product / (norm_curr * norm_prev + 1e-8)
+        angular_tokens = dot_product / np.maximum(norm_curr * norm_prev, 1e-12)
         angular_per_sample = np.mean(angular_tokens, axis=-1)  # (Samples, Steps-2)
         angular_mean = np.mean(angular_per_sample, axis=0)      # (Steps-2,)
         angular_std  = np.std(angular_per_sample,  axis=0)
@@ -64,7 +65,6 @@ def trajectory_with_MRL(
 
     _, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # Una palette con colori distinti
     cmap = plt.get_cmap("tab10")
 
     for i, d in enumerate(dims_to_analyze):
@@ -73,24 +73,17 @@ def trajectory_with_MRL(
         res = results[d]
         label = f"Dim {d}"
 
-        # ------------------------------------------------------------------
-        # Assi X costruiti dalle lunghezze reali delle metriche
-        # ------------------------------------------------------------------
 
         steps_radial = np.arange(1, len(res["radial_mean"]) + 1)
         steps_ang = np.arange(2, len(res["angular_mean"]) + 2)
         steps_acc = np.arange(2, len(res["acc_mean"]) + 2)
-
-        # ------------------------------------------------------------------
-        # 1. RADIAL
-        # ------------------------------------------------------------------
 
         axes[0].plot(
             steps_radial,
             res["radial_mean"],
             linestyle="-",
             color=color,
-            linewidth=1,
+            linewidth=1.2,
             label=label,
         )
 
@@ -105,16 +98,12 @@ def trajectory_with_MRL(
             alpha=0.08,
         )
 
-        # ------------------------------------------------------------------
-        # 2. ANGULAR
-        # ------------------------------------------------------------------
-
         axes[1].plot(
             steps_ang,
             res["angular_mean"],
             linestyle="-",
             color=color,
-            linewidth=1,
+            linewidth=1.2,
             label=label,
         )
 
@@ -143,7 +132,7 @@ def trajectory_with_MRL(
             res["acc_mean"],
             linestyle="-",
             color=color,
-            linewidth=1,
+            linewidth=1.2,
             label=label,
         )
 
@@ -160,17 +149,17 @@ def trajectory_with_MRL(
 
     axes[0].set_title(r"$\|\Delta^{(k)}\|_2$", fontweight="bold", fontsize=13)
     axes[0].set_xlabel(x_label)
-    axes[0].grid(True, linestyle="--", alpha=0.4, which="both")
+    axes[0].grid(True, linestyle="-", alpha=0.4, which="both")
     axes[0].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
     axes[1].set_title(r"$\cos\angle$", fontweight="bold", fontsize=13)
     axes[1].set_xlabel(x_label)
-    axes[1].grid(True, linestyle="--", alpha=0.4)
+    axes[1].grid(True, linestyle="-", alpha=0.4)
     axes[1].legend(loc="lower right", framealpha=0.9, fontsize="small")
 
     axes[2].set_title(r"$\hat{a}^{(k)}$", fontweight="bold", fontsize=13)
     axes[2].set_xlabel(x_label)
-    axes[2].grid(True, linestyle="--", alpha=0.4, which="both")
+    axes[2].grid(True, linestyle="-", alpha=0.4, which="both")
     axes[2].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
     plt.tight_layout()
@@ -235,7 +224,7 @@ def both_trajectories(
         res_z["radial_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=1,
+        linewidth=1.2,
         label=label_z,
     )
 
@@ -255,7 +244,7 @@ def both_trajectories(
         res_y["radial_mean"],
         linestyle="-",
         color=color_y,
-        linewidth=1,
+        linewidth=1.2,
         label=label_y,
     )
 
@@ -275,7 +264,7 @@ def both_trajectories(
         res_z["angular_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=1,
+        linewidth=1.2,
         label=label_z,
     )
 
@@ -298,9 +287,9 @@ def both_trajectories(
     axes[1].plot(
         steps_ang_y,
         res_y["angular_mean"],
-        linestyle="--",
+        linestyle="-",
         color=color_y,
-        linewidth=1,
+        linewidth=1.2,
         label=label_y,
     )
 
@@ -325,7 +314,7 @@ def both_trajectories(
         res_z["acc_mean"],
         linestyle="-",
         color=color_z,
-        linewidth=1,
+        linewidth=1.2,
         label=label_z,
     )
 
@@ -343,9 +332,9 @@ def both_trajectories(
     axes[2].plot(
         steps_acc_y,
         res_y["acc_mean"],
-        linestyle="--",
+        linestyle="-",
         color=color_y,
-        linewidth=1,
+        linewidth=1.2,
         label=label_y,
     )
 
@@ -362,17 +351,17 @@ def both_trajectories(
 
     axes[0].set_title(r"$\|\Delta^{(k)}\|_2$", fontweight="bold", fontsize=13)
     axes[0].set_xlabel(x_label)
-    axes[0].grid(True, linestyle="--", alpha=0.4, which="both")
+    axes[0].grid(True, linestyle="-", alpha=0.4, which="both")
     axes[0].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
     axes[1].set_title(r"$\cos\angle$", fontweight="bold", fontsize=13)
     axes[1].set_xlabel(x_label)
-    axes[1].grid(True, linestyle="--", alpha=0.4)
+    axes[1].grid(True, linestyle="-", alpha=0.4)
     axes[1].legend(loc="lower right", framealpha=0.9, fontsize="small")
 
     axes[2].set_title(r"$\hat{a}^{(k)}$", fontweight="bold", fontsize=13)
     axes[2].set_xlabel(x_label)
-    axes[2].grid(True, linestyle="--", alpha=0.4, which="both")
+    axes[2].grid(True, linestyle="-", alpha=0.4, which="both")
     axes[2].legend(loc="upper right", framealpha=0.9, fontsize="small")
 
     plt.tight_layout()
@@ -394,30 +383,27 @@ def trajectory(
     traj: np.ndarray,
     plot_path: Path
 ):
-    # y_traj shape attesa: (Samples, Steps, Hidden, ...) o simile, in base a compute_metrics
     steps = traj.shape[1]
     sizes = [512]
 
-    # Calcola le metriche solo per Y
     results = compute_metrics(traj, sizes)[sizes[0]]
 
     _, axes = plt.subplots(1, 3, figsize=(18, 5))
 
-    # Usiamo un colore fisso per Y (es. tab:orange o tab:blue)
     color = "tab:orange"
     label = "y"
 
     steps_radial = np.arange(1, steps)
     steps_acc_ang = np.arange(2, steps)
 
-    # 1. Grafico Radial (Distanza L2)
+    # 1. Radial (L2)
     axes[0].plot(
         steps_radial,
         results["radial_mean"],
         linestyle='-',
         color=color,
         label=label,
-        linewidth=1
+        linewidth=1.2
     )
     axes[0].fill_between(
         steps_radial,
@@ -427,14 +413,14 @@ def trajectory(
         alpha=0.08
     )
 
-    # 2. Grafico Angular (Coseno)
+    # 2. Angular (Coseno)
     axes[1].plot(
         steps_acc_ang,
         results["angular_mean"],
         linestyle='-',
         color=color,
         label=label,
-        linewidth=1
+        linewidth=1.2
     )
     axes[1].fill_between(
         steps_acc_ang,
@@ -444,14 +430,14 @@ def trajectory(
         alpha=0.08
     )
 
-    # 3. Grafico Acceleration
+    # 3. Acceleration
     axes[2].plot(
         steps_acc_ang,
         results["acc_mean"],
         linestyle='-',
         color=color,
         label=label,
-        linewidth=2
+        linewidth=1.2
     )
     axes[2].fill_between(
         steps_acc_ang,
@@ -517,20 +503,6 @@ def load_batch_trajectories(batches_dir: Path, first_n_batches: int | None = Non
 
 
 if __name__ == "__main__":
-    # path = Path("/home/davide/Scrivania/prova_traj.npz")
-    # data = np.load(path, allow_pickle=True)
-
-    # z_traj = data['z']
-    # y_traj = data['y']
-
-    # res_z, res_y = both_trajectories(
-    #     z_traj,
-    #     y_traj,
-    #     32,
-    #     plot_path=Path(f'./analysis/plots/{path.stem}.png'),
-    #     x_label="c",
-    #     title="title"
-    # )
     for path, dims_to_analyze, title in [
         ("/home/davide/Documenti/DLAI project/results/maze5x5_noMRL", [16], "Maze 5x5"),
         ("/home/davide/Documenti/DLAI project/results/maze5x5_withMRL", matrioshka_sizes(4, 16), "Maze 5x5 with MRL"),
@@ -539,7 +511,7 @@ if __name__ == "__main__":
         ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL", [16], "Sudoku 9x9"),
         ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL", matrioshka_sizes(4, 16), "Sudoku 9x9 with MRL"),
         ("/home/davide/Documenti/DLAI project/results/sudoku9x9_noMRL_attention", [128], "Sudoku 9x9 (attention)"),
-        #("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL_attention", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
+        ("/home/davide/Documenti/DLAI project/results/sudoku9x9_withMRL_attention", matrioshka_sizes(16, 128), "Sudoku 9x9 (attention) with MRL"),
     ]:
         path = Path(path)
         data = np.load(path / 'trajectories.npz', allow_pickle=True)
@@ -547,7 +519,7 @@ if __name__ == "__main__":
         z_traj = data['z']
         y_traj = data['y']
 
-        idx = np.random.choice(z_traj.shape[0], size=100, replace=False)
+        idx = np.random.choice(z_traj.shape[0], size=150, replace=False)
 
         z_traj = z_traj[idx]
         y_traj = y_traj[idx]
@@ -580,21 +552,19 @@ if __name__ == "__main__":
             )
 
 
-    # trajectory(
-    #     traj=load_batch_trajectories(
-    #         Path('/home/davide/Scaricati/AGI test traj/')
-    #     ),
-    #     plot_path=Path(f'./analysis/plots/arc-ag1_v1.png'),
-    #     title="ARC-AGI v1",
-    # )
+    trajectory(
+        traj=load_batch_trajectories(
+            Path('/home/davide/Scaricati/AGI test traj/')
+        ),
+        plot_path=Path(f'./analysis/plots/arc-ag1_v1.png')
+    )
 
-    # trajectory(
-    #     traj=load_batch_trajectories(
-    #         Path('/home/davide/Scaricati/AGI2 test traj/')
-    #     ),
-    #     plot_path=Path(f'./analysis/plots/arc-ag1_v2.png'),
-    #     title="ARC-AGI v2",
-    # )
+    trajectory(
+        traj=load_batch_trajectories(
+            Path('/home/davide/Scaricati/AGI2 test traj/')
+        ),
+        plot_path=Path(f'./analysis/plots/arc-ag1_v2.png')
+    )
 
     # generate_plots_for_y(
     #     y_traj=load_batch_trajectories(

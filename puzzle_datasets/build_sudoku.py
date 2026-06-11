@@ -6,7 +6,7 @@ from pathlib import Path
 from datasets import load_dataset
 
 CHARSET = "0123456789"
-GRID_SIZE = (9, 9) # standard sudoku grid size
+GRID_SIZE = (9, 9)
 
 
 def convert_subset(source_repo: str, set_name: str, output_dir: Path, n_samples: int, seed: int, max_diff: int):
