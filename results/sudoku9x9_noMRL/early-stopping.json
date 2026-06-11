@@ -1,0 +1,38 @@
+{
+    "0.5": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0017",
+            "token_acc": "0.9712",
+            "exact_match": "0.8200",
+            "min_steps": 4,
+            "mean_steps": 9.478,
+            "max_steps": 16,
+            "total_halted": "71.00"
+        }
+    ],
+    "0.8": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0017",
+            "token_acc": "0.9705",
+            "exact_match": "0.8080",
+            "min_steps": 3,
+            "mean_steps": 5.338,
+            "max_steps": 16,
+            "total_halted": "90.40"
+        }
+    ],
+    "1.0": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0018",
+            "token_acc": "0.9667",
+            "exact_match": "0.7700",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        }
+    ]
+}

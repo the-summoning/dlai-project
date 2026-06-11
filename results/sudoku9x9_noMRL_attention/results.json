@@ -1,0 +1,42 @@
+{
+    "1": [
+        {
+            "W_slice": 128,
+            "val_loss": "0.0016",
+            "token_acc": "0.9641",
+            "exact_match": "0.6920"
+        }
+    ],
+    "2": [
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9868",
+            "exact_match": "0.9340"
+        }
+    ],
+    "4": [
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9871",
+            "exact_match": "0.9380"
+        }
+    ],
+    "8": [
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9877",
+            "exact_match": "0.9420"
+        }
+    ],
+    "16": [
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9875",
+            "exact_match": "0.9420"
+        }
+    ]
+}

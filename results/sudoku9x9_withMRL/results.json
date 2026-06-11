@@ -1,0 +1,102 @@
+{
+    "1": [
+        {
+            "W_slice": 4,
+            "val_loss": "0.0038",
+            "token_acc": "0.9395",
+            "exact_match": "0.5640"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0030",
+            "token_acc": "0.9464",
+            "exact_match": "0.5920"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0027",
+            "token_acc": "0.9474",
+            "exact_match": "0.5860"
+        }
+    ],
+    "2": [
+        {
+            "W_slice": 4,
+            "val_loss": "0.0030",
+            "token_acc": "0.9574",
+            "exact_match": "0.7360"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0026",
+            "token_acc": "0.9594",
+            "exact_match": "0.7400"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0023",
+            "token_acc": "0.9596",
+            "exact_match": "0.7420"
+        }
+    ],
+    "4": [
+        {
+            "W_slice": 4,
+            "val_loss": "0.0029",
+            "token_acc": "0.9612",
+            "exact_match": "0.7660"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0027",
+            "token_acc": "0.9622",
+            "exact_match": "0.7700"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0024",
+            "token_acc": "0.9624",
+            "exact_match": "0.7680"
+        }
+    ],
+    "8": [
+        {
+            "W_slice": 4,
+            "val_loss": "0.0031",
+            "token_acc": "0.9617",
+            "exact_match": "0.7680"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0029",
+            "token_acc": "0.9627",
+            "exact_match": "0.7700"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0026",
+            "token_acc": "0.9627",
+            "exact_match": "0.7680"
+        }
+    ],
+    "16": [
+        {
+            "W_slice": 4,
+            "val_loss": "0.0032",
+            "token_acc": "0.9619",
+            "exact_match": "0.7680"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0030",
+            "token_acc": "0.9625",
+            "exact_match": "0.7740"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0026",
+            "token_acc": "0.9628",
+            "exact_match": "0.7740"
+        }
+    ]
+}

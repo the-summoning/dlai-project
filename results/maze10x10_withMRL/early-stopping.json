@@ -1,0 +1,158 @@
+{
+    "0.5": [
+        {
+            "W_slice": 2,
+            "val_loss": "0.0004",
+            "token_acc": "0.9972",
+            "exact_match": "0.0000",
+            "min_steps": 3,
+            "mean_steps": 13.677361853832442,
+            "max_steps": 16,
+            "total_halted": "20.86"
+        },
+        {
+            "W_slice": 4,
+            "val_loss": "0.0001",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 13.6524064171123,
+            "max_steps": 16,
+            "total_halted": "21.03"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 13.675579322638146,
+            "max_steps": 16,
+            "total_halted": "20.86"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 13.675579322638146,
+            "max_steps": 16,
+            "total_halted": "20.86"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 13.636363636363637,
+            "max_steps": 16,
+            "total_halted": "21.21"
+        }
+    ],
+    "0.8": [
+        {
+            "W_slice": 2,
+            "val_loss": "0.0004",
+            "token_acc": "0.9972",
+            "exact_match": "0.0000",
+            "min_steps": 3,
+            "mean_steps": 5.479500891265597,
+            "max_steps": 16,
+            "total_halted": "87.17"
+        },
+        {
+            "W_slice": 4,
+            "val_loss": "0.0001",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 5.445632798573975,
+            "max_steps": 16,
+            "total_halted": "87.17"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 5.365418894830659,
+            "max_steps": 16,
+            "total_halted": "87.88"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 5.322638146167558,
+            "max_steps": 16,
+            "total_halted": "88.06"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 3,
+            "mean_steps": 5.242424242424242,
+            "max_steps": 16,
+            "total_halted": "88.59"
+        }
+    ],
+    "1.0": [
+        {
+            "W_slice": 2,
+            "val_loss": "0.0004",
+            "token_acc": "0.9972",
+            "exact_match": "0.0000",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        },
+        {
+            "W_slice": 4,
+            "val_loss": "0.0001",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        },
+        {
+            "W_slice": 8,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        },
+        {
+            "W_slice": 16,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0000",
+            "token_acc": "1.0000",
+            "exact_match": "0.9982",
+            "min_steps": 2,
+            "mean_steps": 2.0,
+            "max_steps": 2,
+            "total_halted": "100.00"
+        }
+    ]
+}

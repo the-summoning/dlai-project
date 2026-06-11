@@ -1,0 +1,132 @@
+{
+    "1": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0019",
+            "token_acc": "0.9573",
+            "exact_match": "0.6100"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0019",
+            "token_acc": "0.9576",
+            "exact_match": "0.6120"
+        },
+        {
+            "W_slice": 64,
+            "val_loss": "0.0019",
+            "token_acc": "0.9575",
+            "exact_match": "0.6120"
+        },
+        {
+            "W_slice": 128,
+            "val_loss": "0.0019",
+            "token_acc": "0.9573",
+            "exact_match": "0.6120"
+        }
+    ],
+    "2": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0008",
+            "token_acc": "0.9856",
+            "exact_match": "0.9180"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0008",
+            "token_acc": "0.9857",
+            "exact_match": "0.9180"
+        },
+        {
+            "W_slice": 64,
+            "val_loss": "0.0008",
+            "token_acc": "0.9858",
+            "exact_match": "0.9180"
+        },
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9858",
+            "exact_match": "0.9200"
+        }
+    ],
+    "4": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0008",
+            "token_acc": "0.9870",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0008",
+            "token_acc": "0.9870",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 64,
+            "val_loss": "0.0008",
+            "token_acc": "0.9869",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9869",
+            "exact_match": "0.9440"
+        }
+    ],
+    "8": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0008",
+            "token_acc": "0.9872",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0008",
+            "token_acc": "0.9872",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 64,
+            "val_loss": "0.0008",
+            "token_acc": "0.9871",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9872",
+            "exact_match": "0.9440"
+        }
+    ],
+    "16": [
+        {
+            "W_slice": 16,
+            "val_loss": "0.0008",
+            "token_acc": "0.9874",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 32,
+            "val_loss": "0.0008",
+            "token_acc": "0.9873",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 64,
+            "val_loss": "0.0008",
+            "token_acc": "0.9873",
+            "exact_match": "0.9440"
+        },
+        {
+            "W_slice": 128,
+            "val_loss": "0.0008",
+            "token_acc": "0.9873",
+            "exact_match": "0.9440"
+        }
+    ]
+}
