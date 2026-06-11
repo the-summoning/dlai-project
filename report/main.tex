@@ -92,9 +92,11 @@ The objective is to achieve approximately the same accuracy obtained using all s
 \paragraph{Setup} We train TRMs on Maze $5\times5$, Maze $10\times10$ (generated via the \texttt{maze-dataset} library \cite{maze-dataset}) and Sudoku $9\times9$ (10k samples with a difficulty $\le 2$ sourced from Hugging Face \footnote{Sudoku 9x9 samples were filtered from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this dataset}.}). For all tasks, the internal recursive block of the TRM is configured as a compact 2-layer Transformer operating with a maximum deep supervision depth $N_{\text{sup}} = 16$, a token expansion factor $T = 4$, and a local computational loop bound $n = 8$. All high-dimensional latent trajectories are analyzed via Principal Component Analysis (PCA).
 
 \paragraph{Effect of MRL}
-As demonstrated in Table~\ref{tab:eval-results}, MRL successfully preserves the core reasoning capabilities of the model, yielding virtually identical performance to the full latent representation (except for Sudoku $9\times9$ MLP-Mixing configuration).
-These findings confirm that MRL can function as a non-invasive diagnostic probe to evaluate the intrinsic dimensionality of the reasoning manifold without conflicting with the deep supervision training mechanism.
-Empirical trials utilizing acceleration-based early stopping revealed identical stopping patterns between MRL-enhanced and standard TRMs. Given this equivalence, subsequent early stopping experiments reported in Table~\ref{tab:ea-results} focus exclusively on non-MRL models.
+MRL yields virtually identical performance to the full latent representation, except for Sudoku $9\times9$ MLP-Mixing configuration, as shown in Table~\ref{tab:eval-results}.
+MRL can function as diagnostic probe to evaluate the intrinsic dimensionality of the reasoning manifold without conflicting with the deep supervision training mechanism.
+Even by considering just the very first dimensions of $y$ it is possible to approximate a solution. For Maze 5x5, \textit{by just looking at the first component}, Token Accuracy is ~83\% (see Table~\ref{tab:token-accuracy}).
+Empirical trials utilizing acceleration-based early stopping revealed identical stopping patterns between MRL-enhanced and standard TRMs.
+Given this equivalence, subsequent early stopping experiments reported in Table~\ref{tab:ea-results} focus exclusively on non-MRL models.
 
 
 \paragraph{Difference Between Reasonings and Solutions} 
@@ -102,7 +104,7 @@ Within each deep supervision step, $z$ feature exhibits high-frequency, violent 
 This behavior makes $y$ more suited than $z$ for establishing a stable stopping criterion. This dynamic is visually mapped in Figure~\ref{fig:sudoku9x9-metrics} and Figure~\ref{fig:maze5x5-metrics}.
 
 \paragraph{Two-Regime Updates}
-Examining individual trajectories, such as those illustrated for Sudoku $9\times9$ (Figure~\ref{fig:sudoku9x9-traj}) and Maze $5\times5$ (Figure~\ref{fig:maze5x5-traj}), reveals two distinct computational phases.
+Examining individual trajectories (Figure~\ref{fig:sudoku9x9-traj} and Figure~\ref{fig:maze5x5-traj}) two distinct computational phases emerge.
 Once a macroscopic \textbf{coarse solution} is established during the initial recursive steps, the network transitions into a highly localized \textbf{fine local refinement} zone.
 This topological behavior provides direct empirical validation for the two-scale latent dynamics framework proposed in \cite{latent-dynamics}, proving that TRMs refine solutions incrementally rather than overhauling their semantic interpretation at each step.
 
@@ -124,7 +126,7 @@ Consequently, the normalized acceleration curve fails to mirror actual convergen
 \footnotesize
 \setlength{\tabcolsep}{5pt}
     \captionof{table}{
-        Exact accuracy results with early stopping enabled. "Halted" reports the percentage of samples that skipped at least
+        Exact accuracy (\%) results with early stopping enabled. "Halted" (\%) reports the percentage of samples that skipped at least
         one step. "Avg steps" means the average step performed (16 implies basically no early exiting). 
         "(attn)" means that the TRM used Attention instead of MLP-Mixing.
     }
@@ -223,7 +225,7 @@ solvable with just one supervision step while Sudoku requires at least $N_{\math
 \footnotesize
 \setlength{\tabcolsep}{5pt}
     \captionof{table}{
-        Exact accuracy achieved across datasets with and without MRL. "(attn)" means that attention instead of MLP-Mixing was used.
+        Exact accuracy (\%) achieved across datasets with and without MRL. "(attn)" means that attention instead of MLP-Mixing was used.
         The number below "no MRL" represent the full hidden size.
     }
     \label{tab:eval-results}
@@ -277,15 +279,51 @@ solvable with just one supervision step while Sudoku requires at least $N_{\math
     \end{tabular}
 \end{center}
 
+\begin{center}
+\footnotesize
+\setlength{\tabcolsep}{5pt}
+\captionof{table}{
+    Token accuracy (\%) achieved across datasets with MRL. Results refer to $N_{\mathrm{sup}} = 16$.
+    Below each task are reported the MRL dimensions used for prediction.\\
+}
+\label{tab:token-accuracy}
+\begin{tabular}{ccccc ccccc cccc cccc}
+\toprule
+\multicolumn{5}{c}{Maze 5x5} &
+\multicolumn{5}{c}{Maze 10x10} &
+\multicolumn{3}{c}{Sudoku 9x9} &
+\multicolumn{4}{c}{Sudoku 9x9 (attn)} \\
+
+\cmidrule(lr){1-5}
+\cmidrule(lr){6-10}
+\cmidrule(lr){11-13}
+\cmidrule(lr){14-17}
+
+1 & 2 & 4 & 8 & 16 &
+2 & 4 & 8 & 16 & 32 &
+4 & 8 & 16 &
+16 & 32 & 64 & 128 \\
+
+\midrule
+
+82.8 & 98.75 & 99.9 & 99.9 & 99.9 &
+99.7 & 1 & 1 & 1 & 1 &
+96.2 & 96.25 & 96.3 &
+98.74 & 98.73 & 98.7 & 98.7 \\
+
+\bottomrule
+\end{tabular}
+\end{center}
+
 
 \subsection*{Plots}
 
 In the following, plots that describe what happens inside reasoning latents, across supervision steps, are presented.
 Figure~\ref{fig:sudoku9x9-metrics}, Figure~\ref{fig:sudoku9x9_mrl-metrics}, Figure~\ref{fig:maze5x5-metrics} and Figure~\ref{fig:maze5x5_mrl-metrics} show:
 \begin{itemize}
-    \item Average magnitude of $\Delta$ step values.
-    \item Average step orthogonality.
-    \item Average normalized acceleration.
+    \item Average magnitude of $\Delta^{(k)}$ step values.
+    \item Average step orthogonality $\cos \angle\!\bigl(\Delta^{(k)},\ \Delta^{(k-1)}\bigr)$.
+    \item Average normalized acceleration (see Equation~\ref{eq:norm-acceleration}).
 \end{itemize}
 Figure~\ref{fig:agi-v1-clusters} and figure~\ref{fig:agi-v2-clusters} presents the trajectories generated by the TRM during the recurrent steps and projects them into 3D (inputs comes from ARC-AGI benchmark series).
 Finally, figure~\ref{fig:maze5x5-traj} and Figure~\ref{fig:maze5x5-traj} show a random sampled trajectory and its evolution with respect to unnormalized and normalized acceleration values.
