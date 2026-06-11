@@ -118,72 +118,6 @@ Crucially, the unnormalized acceleration (Equation~\ref{eq:acceleration}) provid
 This divergence in reliability is mathematically explained by the transition between the two latent regimes: during the initial steps, $\Delta^{(k)}$ is large and quasi-orthogonal but toward convergence $\Vert \Delta^{(k)} \Vert_2 \to 0$, causing the denominator of the normalized acceleration metric (Equation~\ref{eq:norm-acceleration}) to collapse.
 Consequently, the normalized acceleration curve fails to mirror actual convergence (Figure~\ref{fig:sudoku9x9-traj} and Figure~\ref{fig:maze5x5-traj} provide clear visual evidence of this instability).
 
-% % ------------------------------------------------------------------------------
-% \section{Experimental results}
-
-% \paragraph{Setup} In all experiments a 2-layer Transformer was internally used with recursion parameters: $N_{\text{sup}} = 16$, $T = 4$, and $n = 8$.
-% Synthetic Maze 5$\times$5, Maze 10$\times$10 (generated using the \texttt{maze-dataset} \cite{maze-dataset} library) and Sudoku 9$\times$9 (10k random samples with difficulty $\leq 2$ from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{here}) datasets were employed to ensure computational tractability.
-
-
-% \paragraph{Effect of MRL}
-% As demonstrated in Table~\ref{tab:eval-results}, MRL successfully preserves the core reasoning capabilities of the model, yielding virtually identical performance to the full latent representation (except for the Sudoku $9\times9$0 MLP-Mixing).
-% Empirical trials utilizing acceleration-based early stopping revealed identical stopping patterns between MRL-enhanced and standard TRMs.
-% These findings confirm that MRL can function as a non-invasive diagnostic probe to evaluate the intrinsic dimensionality of the reasoning manifold during.
-
-% \paragraph{Difference between reasonings and solutions} Within each deep supervision, $z$ violently oscillates ($n$ cycle) before almost aligning with $y$.
-% This serves the basis for using $y$ for correct early stopping rather than $z$, since it follows smoother and more granular transitions. Figure~\ref{fig:sudoku9x9-metrics} and Figure~\ref{fig:maze5x5-metrics}
-% present showthis visually.
-
-% \paragraph{Two regimes updates} if we look also at individual trajectories (like in Figure~\ref{fig:sudoku9x9-traj} or Figure~\ref{fig:maze5x5-traj}), once a macroscopic \textbf{coarse solution} is established during the initial steps, the network enters into a \textbf{fine local refinements} zone.
-% This phenomenon of two distinct regimes provides direct empirical validation for the framework proposed in \cite{latent-dynamics}.
-
-% \paragraph{Trajectories clusters} By simoultaneously looking at all trajectoies and their starting and ending (Figure~\ref{fig:agi-v1-clusters} and Figure~\ref{fig:agi-v2-clusters})
-% we can notice that latents \textbf{accumulate and converge torward precise and defined fregions}.
-
-% \paragraph{Early Stopping}
-% Given this geometry, halting when no relevant "movement" is performed becomes justified.
-% Table~\ref{tab:ea-results} demonstrates that early stopping significantly lowers the average number of steps without sacrificing predictive accuracy.
-% Crucially, the unnormalized acceleration (see Equation~\ref{eq:acceleration}) provies a substantially more robust and reliable stopping signal than the normalized variant proposed in \cite{latent-dynamics}. 
-% This divergence in reliability is mathematically explained by the transition between the two latent regimes.
-% During the initial steps, $\Delta^{(k)}$ is large and quasi-orthogonal but torward convergence the magnitude of updates swiftly decays, causing the denominator of the normalized acceleration (see \Equation~\ref{eq:norm-acceleration}) to become almost zero.
-% Consequently, the normalized acceleration curve doesn't mirrot the trajectory being near a stable fixed point (Equation~\ref{fig:sudoku9x9-traj} and Equation~\ref{fig:maze5x5-traj} give visual evidence of this instability).
-
-% VALORI DEI PC PICCOLI NEI SAMPLE TRAJECTORY
-% il Transformer, durante i passi di loop, non sta stravolgendo il significato semantico del token (il che creerebbe balzi enormi da valori interi sul grafico), ma sta oscillando in un intorno infinitesimale per rifinire i dettagli della risposta (risolvere il Sudoku o trovare l'uscita del Maze).
-
-% USO DELL'ACCELERAZIONE NON NORMALIZZATA
-% Gli autori nel loro pseudocodice per l'Early Exit usano l'accelerazione pura/assoluta (Eq. 5). L'Equazione 6 (quella normata) viene citata nel testo come un "drop-in replacement" generico per mitigare riscalamenti globali tra blocchi diversi, ma se usata ciecamente per tracciare i grafici temporali produce esattamente l'effetto distorsivo che stai vedendo.
-% Nel tuo grafico dell'accelerazione normata: All'inizio, il modello compie grandi balzi (quello che il paper chiama large-scale drift). Sia il numeratore (il cambio di passo) che il denominatore (la grandezza dei passi) sono grandi, e il loro rapporto si stabilizza attorno a ~0.6 / 0.9.  Negli ultimi passi (passi verdi e gialli, step 10-15), il modello ha quasi raggiunto la soluzione e sta compiendo micro-correzioni infinitesimali (small-scale refinements). Geometricamente, la traiettoria sta curvando o spiraleggiando in un'area piccolissima.
-% Quando i passi ($\Delta$) diventano microscopici, il denominatore dell'Equazione 6 ($||\Delta^{(k)}|| + ||\Delta^{(k-1)}||$) collassa rapidissimamente verso lo zero. Di conseguenza, anche se la variazione reale a numeratore è minuscola, dividerla per un numero quasi nullo fa schizzare il risultato verso l'alto (0.9).  Ecco perché l'accelerazione normata sembra alta: non perché il modello stia accelerando nello spazio, ma perché la formula amplifica enormemente le micro-oscillazioni locali quando la velocità assoluta rallenta.
-
-% MRL COME ESPERIMENTO NON HA DIMOSTRATO SIGNIFICATIVE DIFFERENZE SIGNIFICATIVE SIA IN TERMINI DI PERFORMANCE SIA IN TERMINI DI QUANDO TRIGGERARE L'EARLY STOPPING
-% Viene quindi visto come un modo per rilevare la vera dimensione del manifold all'interno del reasoning space.
-
-% \paragraph{Effect of MRL}
-
-% By looking at Table~\ref{tab:eval-results}, MRL preserves almost the same performance as the full latent representation except for Sudoku 9$\times$9 (when using MLP-Mixing).
-% Overall, MRL does not introduce significant differences in either final accuracy or convergence behavior. Experiments with acceleration-based early stopping revealed no meaningful changes in the stopping patterns compared to standard TRMs.
-% Consequently, subsequent early stopping experiments (see Table~\ref{tab:ea-results}) are reported only for non-MRL models.
-% MRL appears to act as a useful probe to determine, even during the training phase, the intrinsic dimensionality of the reasoning manifold.
-
-% \paragraph{Geometry of Latents}
-
-% Figure~\ref{fig:sample-traj} shows a representative trajectory of the reasoning latent $y$ for a Sudoku 9$\times$9 sample projected onto its principal components.
-
-% A notable observation is that the trajectory remains confined to a highly localized region of the latent space. The projected coordinates exhibit only small variations throughout the recursive updates, with no evidence of large discontinuous jumps. This behavior suggests that the recursive Transformer is not repeatedly changing the semantic interpretation of the latent representation. Instead, once a coarse solution has been established, the model performs a sequence of increasingly fine local refinements.
-
-% This observation is consistent with the latent dynamics reported in \cite{latent-dynamics}. The recursive process appears to operate in two regimes: an initial phase characterized by larger movements toward a candidate solution, followed by a refinement phase in which the trajectory oscillates within a small neighborhood of the latent space. For combinatorial tasks such as Sudoku and Maze solving, these micro-adjustments can be interpreted as iterative corrections that progressively improve the current solution while preserving its overall semantic structure.
-
-% The small magnitude of the principal component coordinates therefore provides qualitative evidence that TRMs exhibit a latent refinement process similar to that previously observed in recurrent Transformer architectures.
-
-% \paragraph{Early Stopping}
-
-% Table~\ref{tab:ea-results} shows that early stopping significantly lowers the average number of recursive updates across all tasks, .
-% The unnormalized acceleration defined as in Equation~\ref{eq:acceleration} provides substantially more reliable stopping signals than the normalized variant presented in \cite{latent-dynamics} as a generic drop-in replacement.
-% This because firstly the updated are "violent" and orthogonal while near convergence the latent trajectory enters a refinement regime.
-% In this setting, the denominator of the normalized acceleration rapidly approaches zero and even tiny local oscillations are artificially amplified, causing the normalized acceleration to increase despite the trajectory being close to convergence.
-% The unnormalized acceleration does not suffer from this instability and it empirically yields stopping decisions.
-
 
 \begin{strip}
 \begin{center}
@@ -216,32 +150,6 @@ Consequently, the normalized acceleration curve fails to mirror actual convergen
 \end{strip}
 
 
-% % ------------------------------------------------------------------------------
-% \section{Conclusions}
-
-% Once you have finished your project, you are required to submit a report using this template. In principle, the only files you need to modify are ``main.tex'' and ``bibliography.tex'' (see Section~\ref{sec:latex} for more details). Hence, you can simply take this document and modify it directly with your own content.
-
-% % ------------------------------------------------------------------------------
-% \section{Future work}
-% Altought the decoder-only model
-%     they studied used recursion in different ways
-
-    
-% CON EARLY STOPPING CHE FUNZIONA, È POSSIBILE COMBINARLO CON PPTRM e velocizzare i 100 rollout
-
-
-% TODO add token wise early stopping instead of average them
-
-% Several directions remain open for future exploration:
-% A starting point will be simply analyzing on different and harder domains and check for \textbf{domain trasfer}. Is the reasoning acquired for Sudoku re-used for KenKen or Latin Square? This question could be answered using
-% using MRL to check how much of the reasoning space transfer.
-% \textbf{Prediction of trajectories} or autoregressive generation (trajectory $t$ at step $s+1$ given $t_{s+1}$) after reached the first $k$ steps could be indagated for accelerating
-% inference time. This has been tested using a single Regressor after compressing the data with PCA but it didn't generalize.
-% Probabilistic TRM is a "brute-force" quick extension which boosts performance while requiring many (deterministic) rollouts but it doesn't really make the architecture \textbf{probabilistic}.
-% Tthe puzzle tasks used in this work tipically, to be well posed (especially Sudoku), requires exact one solution per sample. But in certain tasks
-% different "paths" may be possible; throught a "temperature" parameter could be interesting to reach \textbf{different correct solutions}.
-
-% ------------------------------------------------------------------------------
 \section{Conclusion and Future Work}
 
 We investigated the latent dynamics of TRMs, revealing a two-scale geometric regime, and demonstrated that once a coarse macroscopic solution is established, the trajectory enters a localized phase of refinements.
