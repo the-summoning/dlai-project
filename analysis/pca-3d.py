@@ -34,13 +34,11 @@ def gen_plot(load_path: Path, save_path: Path, load_batches: bool =  False):
     y_space = np.mean(traj, axis=2)  # (N_samples, steps, hidden_size)
     samples, steps, hidden_size = y_space.shape
 
-    # PCA globale a 3 componenti
     z_all_points = y_space.reshape(-1, hidden_size)
     pca_3d = PCA(n_components=3)
     points_3d = pca_3d.fit_transform(z_all_points)
     traj_all_3d = points_3d.reshape(samples, steps, 3)
 
-    # Colormap: viola→giallo lungo gli step
     cmap = plt.cm.plasma # type: ignore
     colors = cmap(np.linspace(0, 1, steps))  # (steps, 4) RGBA
 
@@ -59,19 +57,16 @@ def gen_plot(load_path: Path, save_path: Path, load_batches: bool =  False):
                 linewidth=0.8
             )
 
-    # Punti inizio e fine
     ax.scatter(traj_all_3d[:, 0, 0],  traj_all_3d[:, 0, 1],  traj_all_3d[:, 0, 2], # type: ignore
             color=colors[0],  alpha=0.5, s=12, label='First step', zorder=5)
     ax.scatter(traj_all_3d[:, -1, 0], traj_all_3d[:, -1, 1], traj_all_3d[:, -1, 2], # pyright: ignore[reportArgumentType]
             color=colors[-1], alpha=0.7, s=12, label=f'Last step', zorder=5)
 
-    # Colorbar manuale per la progressione temporale
     sm = plt.cm.ScalarMappable(cmap=cmap, norm=plt.Normalize(vmin=0, vmax=steps-1)) # type: ignore
     sm.set_array([])
     cbar = fig.colorbar(sm, ax=ax, pad=0.1, shrink=0.6)
     cbar.set_label('Supervision step', fontweight='bold')
 
-    #ax.set_title('Spazio Latente Globale 3D: Lo sciame verso l\'attrattore', fontweight='bold')
     ax.set_xlabel('PC1', fontweight='bold')
     ax.set_ylabel('PC2', fontweight='bold')
     ax.set_zlabel('PC3', fontweight='bold')

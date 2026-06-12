@@ -41,85 +41,74 @@
 \begin{abstract}
 
 Tiny Recursive Model (TRM) is a recent recursive architecture that outperforms frontier LLMs on reasoning tasks.
-Despite being called "tiny", TRMs require many sequential steps to produce strong predictions on non-trivial problems.
-Furthermore, a recent extension trades-off even more inference for accuracy by requiring dozens of parallel rollouts.
-At the same time, the geometric evolution of TRM hidden states remains largely unexplored.
-This work is twofold. First, it explains the geometry of the latent reasoning space of TRMs; second, it addresses the inference-time bottleneck
-by applying acceleration-based early stopping and evaluating its impact.
+Despite being called ``tiny'', TRMs require many sequential steps to produce accurate predictions on non-trivial problems.
+Furthermore, a recent extension trades off even more inference time for accuracy by requiring dozens of parallel rollouts.
+At the same time, the internal evolution of TRM hidden states remains largely unexplored.
+This work is twofold: first, it characterizes the geometry of the latent reasoning space of TRMs; second, it addresses the inference-time bottleneck by introducing an acceleration-based early stopping criterion and evaluating its impact.
 
 \end{abstract}
 
 
 % ------------------------------------------------------------------------------
 \section{Related Work}
-
-
 The work is grounded in recent advancements in latent reasoning architectures: \begin{enumerate*}[label=(\roman*)]
-
 \item \textbf{Tiny Recursive Model (TRM):}
-\citet{trm} simplifies the biology-inspired HRM architecture \cite{hrm} by iteratively processing hidden states through a \textit{single} 2-layer Transformer with deep supervision.
-
+\citet{trm} simplifies the biology-inspired HRM architecture \cite{hrm} by iteratively processing hidden states through a single 2-layer Transformer with deep supervision,
 \item \textbf{Geometric metrics and early stopping:}
-\citet{latent-dynamics} shows that internal representations within recurrent Transformer blocks evolve through a combination of fine-grained local refinements and larger-scale drift. They introduce geometric metrics and compare different early-exit mechanisims.
-
+\citet{latent-dynamics} shows that internal representations within recurrent Transformer blocks evolve through a combination of fine-grained local refinements and larger-scale drift, and introduces geometric metrics to compare different early-exit mechanisms,
 \item \textbf{Probabilistic TRM (PTRM):}
-\citet{ptrm} propose a simple training-free extension that blindly injects noise during recursion. Although PTRM achieves substantial accuracy gains, it significantly increases inference costs by requiring up to 100 parallel rollouts per sample.
+\citet{ptrm} proposes a simple training-free extension that blindly injects noise during recursion. Although PTRM achieves substantial accuracy gains, it significantly increases inference costs by requiring up to 100 parallel rollouts per sample.
 \end{enumerate*}
 The \textbf{main contributions} of this work are: \begin{enumerate*}[label=(\roman*)]
-
-\item \textbf{implementation from scratch of the TRM} (both MLP-Mixer and Attention variants),
-
-\item \textbf{study of both reasoning and solution latents} ($y$ and $z$),
-
-\item \textbf{implementation of acceleration-based early stopping} to reduce inference time and
-
-\item experimental investigation of \textbf{Matryoshka Representation Learning} imposed on $y$.
-
+\item implementation from scratch of the TRM (both MLP-Mixer and Attention variants),
+\item study of both reasoning and solution latents ($y$ and $z$),
+\item implementation of acceleration-based early stopping to reduce inference time, and
+\item experimental investigation of Matryoshka Representation Learning imposed on $y$.
 \end{enumerate*}
 
 
 % ------------------------------------------------------------------------------
 \section{Method}
-
-TRMs were trained both with and without \textbf{Matryoshka Representation Learning} \cite{mrl} 
-For the geometric analysis, the latent trajectories were studied with \textbf{PCA} for visualization and the metrics introduced in \cite{latent-dynamics} were computed. The trained model was evaluated and the resulting latent trajectories were recorded for direct inspection of the internal computation process. Additional trajectories were collected from the publicly available ARC-AGI checkpoints.
+TRMs were trained both with and without \textbf{Matryoshka Representation Learning} \cite{mrl}.
+For the geometric analysis, the latent trajectories were studied via \textbf{PCA} for visualization, and the metrics introduced in \cite{latent-dynamics} were computed.
+The trained models were evaluated and the resulting latent trajectories were recorded for direct inspection of the internal computation process. Additional trajectories were collected from the publicly available ARC-AGI checkpoints.
 Finally, TRM was extended with an early stopping criterion based on the unnormalized acceleration (see Equation~\ref{eq:acceleration}).
 The objective is to achieve approximately the same accuracy obtained using all supervision steps ($N_{\text{sup}} = 16$) while reducing the average number of iterations during inference.
-
 % ------------------------------------------------------------------------------
+
 \section{Experimental Results}
 
-\paragraph{Setup} We train TRMs on Maze $5\times5$, Maze $10\times10$ (generated via the \texttt{maze-dataset} library \cite{maze-dataset}) and Sudoku $9\times9$ (10k samples with a difficulty $\le 2$ sourced from Hugging Face \footnote{Sudoku 9x9 samples were filtered from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this dataset}.}). For all tasks, the internal recursive block of the TRM is configured as a compact 2-layer Transformer operating with a maximum deep supervision depth $N_{\text{sup}} = 16$, a token expansion factor $T = 4$, and a local computational loop bound $n = 8$. All high-dimensional latent trajectories are analyzed via Principal Component Analysis (PCA).
+\paragraph{Setup}
+We train TRMs on Maze $5\times5$, Maze $10\times10$ (generated using the \texttt{maze-dataset} library \cite{maze-dataset}), and Sudoku $9\times9$ (10k samples with difficulty $\leq 2$ sourced from Hugging Face\footnote{Sudoku $9\times9$ samples were filtered from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this dataset}.}). For all tasks, the internal recursive block of the TRM is configured as a compact 2-layer Transformer with maximum deep supervision depth $N_{\text{sup}} = 16$, token expansion factor $T = 4$, and local computation loop bound $n = 8$. All high-dimensional latent trajectories are analyzed via Principal Component Analysis (PCA).
 
 \paragraph{Effect of MRL}
-MRL yields virtually identical performance to the full latent representation, except for Sudoku $9\times9$ MLP-Mixing configuration, as shown in Table~\ref{tab:eval-results}.
-MRL can function as diagnostic probe to evaluate the intrinsic dimensionality of the reasoning manifold without conflicting with the deep supervision training mechanism.
-Even by considering just the very first dimensions of $y$ it is possible to approximate a solution. For Maze 5x5, \textit{by just looking at the first component}, Token Accuracy is ~83\% (see Table~\ref{tab:token-accuracy}).
-Empirical trials utilizing acceleration-based early stopping revealed identical stopping patterns between MRL-enhanced and standard TRMs.
-Given this equivalence, subsequent early stopping experiments reported in Table~\ref{tab:ea-results} focus exclusively on non-MRL models.
+As shown in Table~\ref{tab:eval-results}, MRL yields virtually identical performance to the full latent representation, except for the Sudoku $9\times9$ MLP-Mixing configuration.
+MRL can therefore serve as a diagnostic probe for estimating the intrinsic dimensionality of the reasoning manifold without interfering with the deep supervision mechanism.
+Even when considering only the first few dimensions of $y$, the solution can be approximated effectively. For Maze $5\times5$, \textit{using only the first principal component}, Token Accuracy remains around 83\% (Table~\ref{tab:token-accuracy}).
+Empirical trials with acceleration-based early stopping revealed identical stopping patterns for MRL-enhanced and standard TRMs.
+Given this equivalence, the early stopping experiments reported in Table~\ref{tab:ea-results} focus exclusively on non-MRL models.
 
-
-\paragraph{Difference Between Reasonings and Solutions} 
-Within each deep supervision step, $z$ feature exhibits high-frequency, violent oscillations across the internal $n$ computational cycles before eventually aligning with the solution state $y$.
-This behavior makes $y$ more suited than $z$ for establishing a stable stopping criterion. This dynamic is visually mapped in Figure~\ref{fig:sudoku9x9-metrics} and Figure~\ref{fig:maze5x5-metrics}.
+\paragraph{Difference Between Reasoning and Solutions}
+Within each deep supervision step, the features of $z$ exhibit high-frequency oscillations across the internal $n$ computational cycles before eventually aligning with the solution state $y$.
+This behavior makes $y$ more suitable than $z$ for defining a stable stopping criterion.
+This dynamic is illustrated in Figures~\ref{fig:sudoku9x9-metrics} and~\ref{fig:maze5x5-metrics}.
 
 \paragraph{Two-Regime Updates}
-Examining individual trajectories (Figure~\ref{fig:sudoku9x9-traj} and Figure~\ref{fig:maze5x5-traj}) two distinct computational phases emerge.
-Once a macroscopic \textbf{coarse solution} is established during the initial recursive steps, the network transitions into a highly localized \textbf{fine local refinement} zone.
-This topological behavior provides direct empirical validation for the two-scale latent dynamics framework proposed in \cite{latent-dynamics}, proving that TRMs refine solutions incrementally rather than overhauling their semantic interpretation at each step.
+Examination of individual trajectories (Figures~\ref{fig:sudoku9x9-traj} and~\ref{fig:maze5x5-traj}) reveals two distinct computational phases.
+Once a macroscopic \textbf{coarse solution} emerges during the initial recursive steps, the network transitions into a localized \textbf{fine refinement} regime.
+This topological behavior provides empirical support for the two-scale latent dynamics framework proposed in \cite{latent-dynamics}, suggesting that TRMs refine solutions incrementally rather than repeatedly altering their semantic interpretation at each step.
 
-\paragraph{Trajectory Clustering} 
-By simultaneously analyzing the collective evolution of multiple trajectories from their initial states to convergence (see the ARC-AGI 1 and ARC-AGI 2 data in Figure~\ref{fig:agi-v1-clusters} and Figure~\ref{fig:agi-v2-clusters}), a clear topological organization emerges.
-The latent representations do not diffuse chaotically; instead, they progressively \textbf{accumulate and converge toward precise, well-defined attractor regions} within the manifold, establishing that the reasoning process maps to stable fixed points.
-This could related with the ideas of Deep Equilibrium Models (DEQ) \cite{deq} and Implicit Function Theorem (IFT) presented by \citet{hrm}.
+\paragraph{Trajectory Clustering}
+Simultaneous analysis of multiple trajectories from initialization to convergence (see the ARC-AGI 1 and ARC-AGI 2 results in Figures~\ref{fig:agi-v1-clusters} and~\ref{fig:agi-v2-clusters}) reveals a clear topological organization.
+Latent representations do not diffuse chaotically; instead, they progressively \textbf{accumulate and converge toward well-defined attractor regions} within the manifold, indicating that the reasoning process evolves toward stable fixed points.
+This observation may be related to ideas underlying Deep Equilibrium Models (DEQ) \cite{deq} and the Implicit Function Theorem (IFT) perspective discussed by \citet{hrm}.
 
 \paragraph{Early Stopping}
-Given this geometry, an halting mechanisism becomes theoretically justified.
-Table~\ref{tab:ea-results} demonstrates that acceleration-based early stopping significantly lowers the average number of steps across all tasks without sacrificing accuracy (see Table~\ref{tab:results} for direct comparison).
-Crucially, the unnormalized acceleration (Equation~\ref{eq:acceleration}) provides a substantially more robust stopping signal than the normalized variant proposed in \cite{latent-dynamics}. 
-This divergence in reliability is mathematically explained by the transition between the two latent regimes: during the initial steps, $\Delta^{(k)}$ is large and quasi-orthogonal but toward convergence $\Vert \Delta^{(k)} \Vert_2 \to 0$, causing the denominator of the normalized acceleration metric (Equation~\ref{eq:norm-acceleration}) to collapse.
-Consequently, the normalized acceleration curve fails to mirror actual convergence (Figure~\ref{fig:sudoku9x9-traj} and Figure~\ref{fig:maze5x5-traj} provide clear visual evidence of this instability).
-
+Given this geometry, a halting mechanism becomes theoretically justified.
+Table~\ref{tab:ea-results} shows that acceleration-based early stopping substantially reduces the average number of computational steps across all tasks without sacrificing accuracy (see Table~\ref{tab:eval-results} for comparison).
+Crucially, the unnormalized acceleration (Equation~\ref{eq:acceleration}) provides a more robust stopping signal than the normalized variant proposed in \cite{latent-dynamics}.
+This difference can be explained by the transition between the two latent regimes: during the initial phase, $\Delta^{(k)}$ is large and approximately orthogonal across successive updates, whereas near convergence $\Vert \Delta^{(k)} \Vert_2 \rightarrow 0$, causing the denominator of the normalized acceleration metric (Equation~\ref{eq:norm-acceleration}) to collapse.
+As a result, the normalized acceleration curve no longer reliably reflects convergence. Figures~\ref{fig:sudoku9x9-traj} and~\ref{fig:maze5x5-traj} provide visual evidence of this instability.
 
 \begin{strip}
 \begin{center}
@@ -154,13 +143,14 @@ Consequently, the normalized acceleration curve fails to mirror actual convergen
 
 \section{Conclusion and Future Work}
 
-We investigated the latent dynamics of TRMs, revealing a two-scale geometric regime, and demonstrated that once a coarse macroscopic solution is established, the trajectory enters a localized phase of refinements.
-We then validated that an unnormalized acceleration-based early stopping criterion cuts inference-time compute without sacrificing performance.
-Additionally, we proved that MRL serves as an effective tool to monitor the intrinsic dimensionality of the reasoning space. Several directions remain open for future exploration:
+We investigated the latent dynamics of TRMs, identifying a two-scale geometric regime in which, once a coarse macroscopic solution is established, the trajectory enters a localized refinement phase.
+We further showed that an unnormalized acceleration-based early stopping criterion reduces inference-time computation without sacrificing performance.
+Additionally, we demonstrated that MRL provides an effective tool for monitoring the intrinsic dimensionality of the reasoning space.
+Several directions remain open for future research:
 \begin{enumerate*}[label=(\roman*)]
-\item can the latent reasoning space acquired on Sudoku be transferred to similar tasks such as KenKen or Latin Squares?
-\item can trajectories be accelerating with autoregressive generation or direct future prediction?
-\item in multi-solution tasks, can TRM become truly probabilistic by returning many possible valid answers?
+\item can the latent reasoning space learned on Sudoku be transferred to related tasks such as KenKen or Latin squares?
+\item can trajectories be accelerated through autoregressive generation or direct future-state prediction?
+\item in tasks admitting multiple solutions, can TRMs become truly probabilistic by returning multiple valid answers?
 \end{enumerate*}
 % \begin{enumerate*}[label=(\roman*)]
 % \item \textbf{Domain Transfer and MRL Probing:} future work will investigate whether the latent reasoning space acquired on Sudoku can be transferred to similar tasks such as KenKen or Latin Squares, using MRL to quantify the geometric overlap of the manifolds.
@@ -169,11 +159,10 @@ Additionally, we proved that MRL serves as an effective tool to monitor the intr
 % \end{enumerate*}
 
 
-\section{Statement on the use of AI}\label{sec:ai}
-%
-AI tools were used to summarize and analyze relevant scientific papers, assist in the implementation of model-related code, generate scripts for plotting.
-LLMs was also used to organize the results obtained and to improve the clarity, conciseness and academic style of the final report.
+\section{Statement on the use of AI}
 
+AI tools were used to summarize and analyze relevant scientific literature, assist with model implementation, and generate plotting scripts.
+LLMs were also used to organize the obtained results and improve the clarity, conciseness, and academic style of the report.
 
 \bibliography{references.bib}
 \bibliographystyle{dlaiml2026}
@@ -181,14 +170,14 @@ LLMs was also used to organize the results obtained and to improve the clarity, 
 \section*{Limitations}
 The primary limitation of this study introduces a stark computational trade-off between the inherent overhead of the TRM architecture and the hardware resources required to validate early stopping.
 Paradoxically, evaluating an early stopping criterion demands complex, high-dimensional reasoning problems that natively require a large number of deep supervision steps ($N_{\text{sup}}$) to justify the computational exit. However, the heavily sequential nature of this recursive mechanism creates an intense execution bottleneck; as a result, highly non-trivial configurations—such as scaling up to the maximum recurrence bounds—proved entirely intractable within standard, resource-constrained cloud environments like Google Colab or Kaggle. 
-Furthermore, our geometric exploration was bounded by the availability of public artifacts. Because the original authors of TRM exclusively released pre-trained checkpoints for the ARC-AGI benchmarks, other combinatorial tasks like Sudoku $9\times9$ Extreme and Maze $30\times30$ Hard remained inaccessible for pre-trained trajectory analysis. Finally, due to strict memory and storage constraints when logging massive sequences of intermediate hidden states across numerous steps, the collective study of ARC-AGI latent trajectories had to be restricted to a bounded subset of samples, scaled to the absolute maximum threshold permitted by the available hardware constraints, which nevertheless provided a sufficiently dense corpus to isolate and verify stable convergence behaviors.
+Furthermore, our geometric exploration was bounded by the availability of public artifacts. Because the original authors of TRM exclusively released pre-trained checkpoints \footnote{ARC-AGI checkpoins available \href{https://huggingface.co/arcprize/trm_arc_prize_verification}{here}.} for the ARC-AGI benchmarks, other combinatorial tasks like Sudoku $9\times9$ Extreme and Maze $30\times30$ Hard remained inaccessible for pre-trained trajectory analysis. Finally, due to strict memory and storage constraints when logging massive sequences of intermediate hidden states across numerous steps, the collective study of ARC-AGI latent trajectories had to be restricted to a bounded subset of samples, scaled to the absolute maximum threshold permitted by the available hardware constraints, which nevertheless provided a sufficiently dense corpus to isolate and verify stable convergence behaviors.
+
 
 \clearpage
+\onecolumn
 
 \section*{Appendix}
 
-
-\begin{strip}
 
 \subsection*{Formulas}
 
@@ -330,55 +319,55 @@ Finally, figure~\ref{fig:maze5x5-traj} and Figure~\ref{fig:maze5x5-traj} show a 
 
 \centering
 
-\subsection{Sudoku 9x9 Metrics}
+\subsubsection*{Sudoku 9x9 Metrics}
 
-\includegraphics[width=\linewidth]{./figures/sudoku9x9_metrics.png}
+\includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_metrics.png}
 \captionof{figure}{Sudoku 9x9 average geometric metrics}
 \label{fig:sudoku9x9-metrics}
 
-\includegraphics[width=\linewidth]{./figures/sudoku9x9_mrl_metrics.png}
+\includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_mrl_metrics.png}
 \captionof{figure}{Sudoku 9x9 MRL average geometric metrics}
 \label{fig:sudoku9x9_mrl-metrics}
 
 
-\subsection{Maze 5x5 Metrics}
+\subsubsection*{Maze 5x5 Metrics}
 
-\includegraphics[width=\linewidth]{./figures/maze5x5_metrics.png}
+\includegraphics[width=0.98\linewidth]{./figures/maze5x5_metrics.png}
 \captionof{figure}{Maze 5x5 average geometric metrics}
 \label{fig:maze5x5-metrics}
 
-\includegraphics[width=\linewidth]{./figures/maze5x5_mrl_metrics.png}
+
+\includegraphics[width=0.98\linewidth]{./figures/maze5x5_mrl_metrics.png}
 \captionof{figure}{Maze 5x5 MRL average geometric metrics}
 \label{fig:maze5x5_mrl-metrics}
 
-\subsection{ARC-AGI Clusters}
+\subsubsection*{ARC-AGI Clusters}
 
 \vspace{1cm}
 
-\includegraphics[width=0.7\linewidth]{./figures/agi_clusters.png}
+\includegraphics[width=0.73\textwidth]{./figures/agi_clusters.png}
 \captionof{figure}{ARC-AGI v1 clusters}
 \label{fig:agi-v1-clusters}
 
-\includegraphics[width=0.7\linewidth]{./figures/agi2_clusters.png}
+\includegraphics[width=0.73\textwidth]{./figures/agi2_clusters.png}
 \captionof{figure}{ARC-AGI v2 clusters}
 \label{fig:agi-v2-clusters}
 
 \clearpage
 
-\subsection{Sample Trajectories}
+\subsubsection*{Sample Trajectories}
 
 \vspace{1cm}
 
-\includegraphics[width=\linewidth]{./figures/maze5x5_sample-traj.png}
+\includegraphics[width=\textwidth]{./figures/maze5x5_sample-traj.png}
 \captionof{figure}{Maze 5x5 sample trajectory}
 \label{fig:maze5x5-traj}
 
 \vspace{1cm}
 
-\includegraphics[width=\linewidth]{./figures/sudoku9x9-attn_sample-traj.png}
+\includegraphics[width=\textwidth]{./figures/sudoku9x9-attn_sample-traj.png}
 \captionof{figure}{Sudoku 9x9 (attn) sample trajectory}
 \label{fig:sudoku9x9-traj}
-\end{strip}
 
 \end{document}
 
