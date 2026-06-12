@@ -44,7 +44,7 @@ Tiny Recursive Model (TRM) is a recent recursive architecture that outperforms f
 Despite being called ``tiny'', TRMs require many sequential steps to produce accurate predictions on non-trivial problems.
 Furthermore, a recent extension trades off even more inference time for accuracy by requiring dozens of parallel rollouts.
 At the same time, the internal evolution of TRM hidden states remains largely unexplored.
-This work is twofold: first, it characterizes the geometry of the latent reasoning space of TRMs; second, it addresses the inference-time bottleneck by introducing an acceleration-based early stopping criterion and evaluating its impact.
+This work is twofold: first, it characterizes the geometry of the latent reasoning space of TRMs; second, it addresses the inference-time bottleneck by applying an acceleration-based early stopping criterion and evaluating its impact.
 
 \end{abstract}
 
@@ -71,22 +71,22 @@ The \textbf{main contributions} of this work are: \begin{enumerate*}[label=(\rom
 \section{Method}
 TRMs were trained both with and without \textbf{Matryoshka Representation Learning} \cite{mrl}.
 For the geometric analysis, the latent trajectories were studied via \textbf{PCA} for visualization, and the metrics introduced in \cite{latent-dynamics} were computed.
-The trained models were evaluated and the resulting latent trajectories were recorded for direct inspection of the internal computation process. Additional trajectories were collected from the publicly available ARC-AGI checkpoints.
-Finally, TRM was extended with an early stopping criterion based on the unnormalized acceleration (see Equation~\ref{eq:acceleration}).
+The trained models were evaluated and the resulting latent trajectories were recorded for direct inspection of the internal computation process. Additional trajectories were collected from the publicly available ARC-AGI checkpoints \footnote{ARC-AGI checkpoins available \href{https://huggingface.co/arcprize/trm_arc_prize_verification}{here}.}.
+Finally, TRM was extended with the early stopping criterion based on the unnormalized acceleration (see Equation~\ref{eq:acceleration}) with two-hit check \cite{latent-dynamics}.
 The objective is to achieve approximately the same accuracy obtained using all supervision steps ($N_{\text{sup}} = 16$) while reducing the average number of iterations during inference.
 % ------------------------------------------------------------------------------
 
 \section{Experimental Results}
 
 \paragraph{Setup}
-We train TRMs on Maze $5\times5$, Maze $10\times10$ (generated using the \texttt{maze-dataset} library \cite{maze-dataset}), and Sudoku $9\times9$ (10k samples with difficulty $\leq 2$ sourced from Hugging Face\footnote{Sudoku $9\times9$ samples were filtered from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this dataset}.}).
+We train TRMs on Maze 5x5, Maze 10x10 (generated using the \texttt{maze-dataset} library \cite{maze-dataset}), and Sudoku 9x9 (10k samples with difficulty $\leq 2$ sourced from Hugging Face\footnote{Sudoku $9\times9$ samples were filtered from \href{https://huggingface.co/datasets/Ritvik19/Sudoku-Dataset}{this dataset}.}).
 For all tasks, the internal recursive block of the TRM is configured as a compact 2-layer Transformer with
 $N_{\text{sup}} = 16$ supervision steps, $T = 4$ deep recursion steps, and $n = 8$ latent recursion steps. All high-dimensional latent trajectories are analyzed via Principal Component Analysis (PCA).
 
 \paragraph{Effect of MRL}
-As shown in Table~\ref{tab:eval-results}, MRL yields virtually identical performance to the full latent representation, except for the Sudoku $9\times9$ MLP-Mixing configuration.
+As shown in Table~\ref{tab:eval-results}, MRL yields virtually identical performance to the full latent representation, except for the Sudoku 9x9 MLP-Mixing configuration.
 MRL can therefore serve as a diagnostic probe for estimating the intrinsic dimensionality of the reasoning manifold without interfering with the deep supervision mechanism.
-Even when considering only the first few dimensions of $y$, the solution can be approximated effectively. For Maze $5\times5$, \textit{using only the first principal component}, Token Accuracy remains around 83\% (Table~\ref{tab:token-accuracy}).
+Even when considering only the first few dimensions of $y$, the solution can be approximated effectively. For Maze $5\times5$, \textit{using only the first dimension}, Token Accuracy remains around 83\% (Table~\ref{tab:token-accuracy}).
 Empirical trials with acceleration-based early stopping revealed identical stopping patterns for MRL-enhanced and standard TRMs.
 Given this equivalence, the early stopping experiments reported in Table~\ref{tab:ea-results} focus exclusively on non-MRL models.
 
@@ -96,29 +96,30 @@ This behavior makes $y$ more suitable than $z$ for defining a stable stopping cr
 This dynamic is illustrated in Figures~\ref{fig:sudoku9x9-metrics} and~\ref{fig:maze5x5-metrics}.
 
 \paragraph{Two-Regime Updates}
-Examination of individual trajectories (Figures~\ref{fig:sudoku9x9-traj} and~\ref{fig:maze5x5-traj}) reveals two distinct computational phases.
+Examination of individual trajectories (Figures~\ref{fig:maze5x5-traj} and~\ref{fig:sudoku9x9-traj}) reveals two distinct computational phases.
 Once a macroscopic \textbf{coarse solution} emerges during the initial recursive steps, the network transitions into a localized \textbf{fine refinement} regime.
 This topological behavior provides empirical support for the two-scale latent dynamics framework proposed in \cite{latent-dynamics}, suggesting that TRMs refine solutions incrementally rather than repeatedly altering their semantic interpretation at each step.
 
 \paragraph{Trajectory Clustering}
-Simultaneous analysis of multiple trajectories from initialization to convergence (see the ARC-AGI 1 and ARC-AGI 2 results in Figures~\ref{fig:agi-v1-clusters} and~\ref{fig:agi-v2-clusters}) reveals a clear topological organization.
+Simultaneous analysis of multiple trajectories from initialization to convergence (see the ARC-AGI results in Figures~\ref{fig:agi-v1-clusters} and~\ref{fig:agi-v2-clusters}) reveals a clear topological organization.
 Latent representations do not diffuse chaotically; instead, they progressively \textbf{accumulate and converge toward well-defined attractor regions} within the manifold, indicating that the reasoning process evolves toward stable fixed points.
-This observation may be related to ideas underlying Deep Equilibrium Models (DEQ) \cite{deq} and the Implicit Function Theorem (IFT) perspective discussed by \citet{hrm}.
+This observation may be related to ideas underlying Deep Equilibrium Models (DEQ) \cite{deq} and the Implicit Function Theorem (IFT) discussed by \citet{hrm}.
 
 \paragraph{Early Stopping}
 Given this geometry, a halting mechanism becomes theoretically justified.
 Table~\ref{tab:ea-results} shows that acceleration-based early stopping substantially reduces the average number of computational steps across all tasks without sacrificing accuracy (see Table~\ref{tab:eval-results} for comparison).
-Crucially, the unnormalized acceleration (Equation~\ref{eq:acceleration}) provides a more robust stopping signal than the normalized variant proposed in \cite{latent-dynamics}.
-This difference can be explained by the transition between the two latent regimes: during the initial phase, $\Delta^{(k)}$ is large and approximately orthogonal across successive updates, whereas near convergence $\Vert \Delta^{(k)} \Vert_2 \rightarrow 0$, causing the denominator of the normalized acceleration metric (Equation~\ref{eq:norm-acceleration}) to collapse.
-As a result, the normalized acceleration curve no longer reliably reflects convergence. Figures~\ref{fig:sudoku9x9-traj} and~\ref{fig:maze5x5-traj} provide visual evidence of this instability.
+Crucially, the unnormalized acceleration provides a \textbf{more robust stopping signal} than the normalized variant (Equations~\ref{eq:acceleration} and~\ref{eq:norm-acceleration}).
+During the initial phase, updates $\Delta^{(k)}$ are large, whereas near convergence $\Vert \Delta^{(k)} \Vert_2 \rightarrow 0$ (localized refinements).
+In this transition between the two latent regimes, the unnormalized acceleration cleanly drops to zero because successive updates become identical.
+Conversely, for the normalized metric, both the numerator and the denominator vanish simultaneously. As a result, the normalized acceleration curve plateaus with severe oscillations and fails to reliably signal convergence, as visually demonstrated in Figures~\ref{fig:maze5x5-traj} and~\ref{fig:sudoku9x9-traj}.
 
 \begin{strip}
 \begin{center}
 \footnotesize
 \setlength{\tabcolsep}{5pt}
     \captionof{table}{
-        Exact accuracy (\%) results with early stopping enabled. "Halted" (\%) reports the percentage of samples that skipped at least
-        one step. "Avg steps" means the average step performed (16 implies basically no early exiting). 
+        Exact accuracy (\%) results. "Halted" (\%) reports the percentage of samples that skipped at least
+        one step. "Avg steps" means the average step performed (16 implies no early exiting). 
         "(attn)" means that the TRM used Attention instead of MLP-Mixing.
     }
     \label{tab:ea-results}
@@ -133,10 +134,10 @@ As a result, the normalized acceleration curve no longer reliably reflects conve
     & Accuracy & Halted & Avg steps
     & Accuracy & Halted & Avg steps \\
     \midrule
-    Maze 5x5          & 96 & 44.2 & 12.1 & 95 & 84.1 & 6.4 & 96 & 100 & 2 \\
-    Maze 10x10        & 99 & 38 & 11.9 & 99 & 71.3 & 7.8 & 99 & 100 & 2 \\
-    Sudoku 9x9        & 82 & 71 & 9.48 & 8 & 90.4 & 5.3 & 77 & 100 & 2 \\
-    Sudoku 9x9 (attn) & 94 & 48.6 & 11.68 & 94 & 84.2 & 6.9 & 98 & 100 & 2 \\
+    Maze 5x5          & 96 & 44 & 12 & 95 & 84 & 6.4 & 96 & 100 & 2 \\
+    Maze 10x10        & 96 & 38 & 12 & 97 & 71 & 7.8 & 97 & 100 & 2 \\
+    Sudoku 9x9        & 82 & 71 & 9 & 80 & 90 & 5.3 & 77 & 100 & 2 \\
+    Sudoku 9x9 (attn) & 94 & 49 & 11 & 94 & 84.2 & 7 & 93 & 100 & 2 \\
     \bottomrule
     \end{tabular}
 \end{center}
@@ -146,7 +147,7 @@ As a result, the normalized acceleration curve no longer reliably reflects conve
 \section{Conclusion and Future Work}
 
 We investigated the latent dynamics of TRMs, identifying a two-scale geometric regime in which, once a coarse macroscopic solution is established, the trajectory enters a localized refinement phase.
-We further showed that an unnormalized acceleration-based early stopping criterion reduces inference-time computation without sacrificing performance.
+We further showed that the more stable unnormalized acceleration-based early stopping criterion reduces inference-time computation without sacrificing performance.
 Additionally, we demonstrated that MRL provides an effective tool for monitoring the intrinsic dimensionality of the reasoning space.
 Several directions remain open for future research:
 \begin{enumerate*}[label=(\roman*)]
@@ -171,8 +172,10 @@ LLMs were also used to organize the obtained results and improve the clarity, co
 
 \section*{Limitations}
 The primary limitation of this study introduces a stark computational trade-off between the inherent overhead of the TRM architecture and the hardware resources required to validate early stopping.
-Paradoxically, evaluating an early stopping criterion demands complex, high-dimensional reasoning problems that natively require a large number of deep supervision steps ($N_{\text{sup}}$) to justify the computational exit. However, the heavily sequential nature of this recursive mechanism creates an intense execution bottleneck; as a result, highly non-trivial configurations—such as scaling up to the maximum recurrence bounds—proved entirely intractable within standard, resource-constrained cloud environments like Google Colab or Kaggle. 
-Furthermore, our geometric exploration was bounded by the availability of public artifacts. Because the original authors of TRM exclusively released pre-trained checkpoints \footnote{ARC-AGI checkpoins available \href{https://huggingface.co/arcprize/trm_arc_prize_verification}{here}.} for the ARC-AGI benchmarks, other combinatorial tasks like Sudoku $9\times9$ Extreme and Maze $30\times30$ Hard remained inaccessible for pre-trained trajectory analysis. Finally, due to strict memory and storage constraints when logging massive sequences of intermediate hidden states across numerous steps, the collective study of ARC-AGI latent trajectories had to be restricted to a bounded subset of samples, scaled to the absolute maximum threshold permitted by the available hardware constraints, which nevertheless provided a sufficiently dense corpus to isolate and verify stable convergence behaviors.
+Paradoxically, evaluating an early stopping criterion demands complex, high-dimensional reasoning problems that natively require a large number of supervision steps ($N_{\text{sup}}$) to justify the computational exit.
+However, the sequential nature of this recursive mechanism creates a severe computation bottleneck. Consequently, testing the maximum recurrence bounds proved computationally intractable within standard cloud environments like Google Colab or Kaggle.
+Furthermore, our geometric exploration was bounded by the public checkpoints released by the original authors. Because they exclusively provided pre-trained artifacts for the ARC-AGI benchmarks, other tasks like Sudoku 9x9 Extreme and Maze 30x30 Hard remained inaccessible for trajectory analysis.
+Finally, due to strict memory and storage constraints when logging massive sequences of intermediate hidden states across numerous steps, the collective study of ARC-AGI latent trajectories had to be restricted to a bounded subset of samples, scaled to the absolute maximum threshold permitted by the available hardware constraints, which nevertheless provided a sufficiently dense corpus to isolate and verify stable convergence behaviors.
 
 
 \clearpage
@@ -300,7 +303,7 @@ solvable with just one supervision step while Sudoku requires at least $N_{\math
 82.8 & 98.75 & 99.9 & 99.9 & 99.9 &
 99.7 & 1 & 1 & 1 & 1 &
 96.2 & 96.25 & 96.3 &
-98.74 & 98.73 & 98.7 & 98.7 \\
+98.74 & 98.73 & 98.73     & 98.73 \\
 
 \bottomrule
 \end{tabular}
@@ -319,57 +322,67 @@ Figure~\ref{fig:sudoku9x9-metrics}, Figure~\ref{fig:sudoku9x9_mrl-metrics}, Figu
 Figure~\ref{fig:agi-v1-clusters} and figure~\ref{fig:agi-v2-clusters} presents the trajectories generated by the TRM during the recurrent steps and projects them into 3D (inputs comes from ARC-AGI benchmark series).
 Finally, figure~\ref{fig:maze5x5-traj} and Figure~\ref{fig:sudoku9x9-traj} show a random sampled trajectory and its evolution with respect to unnormalized and normalized acceleration values.
 
-\centering
 
 \subsubsection*{Sudoku 9x9 Metrics}
 
-\includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_metrics.png}
-\captionof{figure}{Sudoku 9x9 average geometric metrics}
-\label{fig:sudoku9x9-metrics}
+\begin{center}
+    \includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_metrics.png}
+    \captionof{figure}{Sudoku 9x9 average geometric metrics}
+    \label{fig:sudoku9x9-metrics}
 
-\includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_mrl_metrics.png}
-\captionof{figure}{Sudoku 9x9 MRL average geometric metrics}
-\label{fig:sudoku9x9_mrl-metrics}
+    \includegraphics[width=0.98\linewidth]{./figures/sudoku9x9_mrl_metrics.png}
+    \captionof{figure}{Sudoku 9x9 MRL average geometric metrics}
+    \label{fig:sudoku9x9_mrl-metrics}
+\end{center}
 
 
 \subsubsection*{Maze 5x5 Metrics}
 
-\includegraphics[width=0.98\linewidth]{./figures/maze5x5_metrics.png}
-\captionof{figure}{Maze 5x5 average geometric metrics}
-\label{fig:maze5x5-metrics}
+\begin{center}
+    \includegraphics[width=0.98\linewidth]{./figures/maze5x5_metrics.png}
+    \captionof{figure}{Maze 5x5 average geometric metrics}
+    \label{fig:maze5x5-metrics}
 
 
-\includegraphics[width=0.98\linewidth]{./figures/maze5x5_mrl_metrics.png}
-\captionof{figure}{Maze 5x5 MRL average geometric metrics}
-\label{fig:maze5x5_mrl-metrics}
+    \includegraphics[width=0.98\linewidth]{./figures/maze5x5_mrl_metrics.png}
+    \captionof{figure}{Maze 5x5 MRL average geometric metrics}
+    \label{fig:maze5x5_mrl-metrics}
+\end{center}
 
 \subsubsection*{ARC-AGI Clusters}
 
-\vspace{1cm}
+The trajectories used for the following plots are collected during evaluation on the validation/test splits, with shape $\texttt{Samples} \times \texttt{Steps} \times \texttt{Seq len} \times \texttt{Hidden size}$. At each supervision step, the representation $y$ is averaged across tokens to obtain a single global representation of the puzzle.
+A three-dimensional PCA projection is then fitted jointly on the representations from all trajectories and supervision steps. This yields a shared coordinate system in which trajectories can be visualized and directly compared within the same compressed space.
+Colors denote the supervision step, thereby highlighting the temporal progression of the representations.
 
-\includegraphics[width=0.73\textwidth]{./figures/agi_clusters.png}
-\captionof{figure}{ARC-AGI v1 clusters}
-\label{fig:agi-v1-clusters}
+\begin{center}
+    \includegraphics[width=0.73\textwidth]{./figures/agi_clusters.png}
+    \captionof{figure}{ARC-AGI v1 clusters}
+    \label{fig:agi-v1-clusters}
 
-\includegraphics[width=0.73\textwidth]{./figures/agi2_clusters.png}
-\captionof{figure}{ARC-AGI v2 clusters}
-\label{fig:agi-v2-clusters}
+    \includegraphics[width=0.73\textwidth]{./figures/agi2_clusters.png}
+    \captionof{figure}{ARC-AGI v2 clusters}
+    \label{fig:agi-v2-clusters}
+\end{center}
 
-\clearpage
 
 \subsubsection*{Sample Trajectories}
 
-\vspace{1cm}
+The following plots show the trajectory of a randomly selected sample, projected into a compressed 3D space, with the goal of visualizing the path followed by the latent solution across supervision steps.
+The trajectory of $y$ is averaged across tokens to obtain a global representation at each step, then subsampled every $4$ steps to retrieve the $y$ values corresponding to the $N_{sup}=16$ supervision steps.
+Unlike the previous analysis, here the PCA is fitted only on the points of this individual trajectory, projecting it independently into a 3D space to visualize its specific path. Alongside the trajectory, we report the standard and normalized acceleration (Equations~\ref{eq:acceleration} and~\ref{eq:norm-acceleration}), computed from consecutive differences $\Delta^{(k)}$, with the supervision step encoded by color in both plots.
 
-\includegraphics[width=\textwidth]{./figures/maze5x5_sample-traj.png}
-\captionof{figure}{Maze 5x5 sample trajectory}
-\label{fig:maze5x5-traj}
+\begin{center}
+    \includegraphics[width=\textwidth]{./figures/maze5x5_sample-traj.png}
+    \captionof{figure}{Maze 5x5 sample trajectory}
+    \label{fig:maze5x5-traj}
 
-\vspace{1cm}
+    \vspace{1cm}
 
-\includegraphics[width=\textwidth]{./figures/sudoku9x9-attn_sample-traj.png}
-\captionof{figure}{Sudoku 9x9 (attn) sample trajectory}
-\label{fig:sudoku9x9-traj}
+    \includegraphics[width=\textwidth]{./figures/sudoku9x9-attn_sample-traj.png}
+    \captionof{figure}{Sudoku 9x9 (attn) sample trajectory}
+    \label{fig:sudoku9x9-traj}
+\end{center}
 
 \end{document}
 
